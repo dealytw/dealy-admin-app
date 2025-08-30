@@ -13,10 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge'
 import { Checkbox } from './ui/checkbox'
 import { MerchantSelector } from './MerchantSelector'
+import { SavedViewsManager } from './SavedViewsManager'
+import { ValidationCell } from './ValidationBadges'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useToast } from '../hooks/use-toast'
 import type { Coupon, CouponFilters, Merchant } from '../domain/coupons'
 import { mockCouponsAdapter as couponsAdapter, mockMerchantsAdapter as merchantsAdapter } from '../data/mockCoupons'
-import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3 } from 'lucide-react'
+import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface CouponGridProps {
@@ -32,6 +35,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
   const [selectedRowForMerchant, setSelectedRowForMerchant] = useState<string | null>(null)
   const [filters, setFilters] = useState<CouponFilters>({})
   const [selectedRows, setSelectedRows] = useState<string[]>([])
+  const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -46,6 +50,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     coupon_status: true,
     market: true,
     site: true,
+    validation: true,
     actions: true
   })
   const [showColumnToggle, setShowColumnToggle] = useState(false)
@@ -56,18 +61,76 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     setRowData(coupons)
   }, [coupons])
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        handleSave()
-      }
-    }
+  // Enhanced keyboard shortcuts
+  const handleCopy = useCallback((coupon: Coupon) => {
+    setCopiedCoupon(coupon)
+    toast({
+      title: 'Coupon copied',
+      description: `"${coupon.coupon_title}" ready to paste`,
+    })
+  }, [toast])
+
+  const handlePaste = useCallback(async () => {
+    if (!copiedCoupon) return
     
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [pendingChanges])
+    try {
+      const { documentId, coupon_uid, createdAt, updatedAt, merchant, ...couponData } = copiedCoupon
+      const newCoupon = await couponsAdapter.create({
+        ...couponData,
+        merchant: merchant?.documentId,
+        coupon_title: `${copiedCoupon.coupon_title} (Copy)`,
+        priority: Math.max(...rowData.map(r => r.priority)) + 1
+      })
+      
+      onCouponsChange()
+      toast({
+        title: 'Coupon pasted',
+        description: 'New coupon created below selection',
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Paste failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  }, [copiedCoupon, rowData, onCouponsChange, toast])
+
+  const handleSave = useCallback(async () => {
+    if (Object.keys(pendingChanges).length === 0) return
+
+    setIsSaving(true)
+    try {
+      const updatePromises = Object.entries(pendingChanges).map(([documentId, changes]) =>
+        couponsAdapter.update(documentId, changes)
+      )
+      
+      await Promise.all(updatePromises)
+      setPendingChanges({})
+      onCouponsChange()
+      
+      toast({
+        title: 'Changes saved',
+        description: `Updated ${Object.keys(pendingChanges).length} coupons`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }, [pendingChanges, onCouponsChange, toast])
+
+  useKeyboardShortcuts({
+    gridRef,
+    onSave: handleSave,
+    onCopy: handleCopy,
+    onPaste: handlePaste,
+    copiedCoupon
+  })
 
   const StatusBadge = ({ value }: { value: string }) => {
     const variant = value === 'active' ? 'default' : 
@@ -75,7 +138,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     return <Badge variant={variant}>{value}</Badge>
   }
 
-  const MerchantCell = ({ data, node }: any) => (
+  const MerchantCell = ({ data }: any) => (
     <button
       onClick={() => {
         setSelectedRowForMerchant(data.documentId)
@@ -204,6 +267,15 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       )
     },
     {
+      headerName: 'Issues',
+      width: 150,
+      cellRenderer: ValidationCell,
+      editable: false,
+      sortable: false,
+      filter: false,
+      cellStyle: { padding: '4px' }
+    },
+    {
       headerName: 'Delete',
       width: 80,
       cellRenderer: DeleteCell,
@@ -246,34 +318,6 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     const selectedIds = selectedNodes.map(node => node.data.documentId)
     setSelectedRows(selectedIds)
   }, [])
-
-  const handleSave = async () => {
-    if (Object.keys(pendingChanges).length === 0) return
-
-    setIsSaving(true)
-    try {
-      const updatePromises = Object.entries(pendingChanges).map(([documentId, changes]) =>
-        couponsAdapter.update(documentId, changes)
-      )
-      
-      await Promise.all(updatePromises)
-      setPendingChanges({})
-      onCouponsChange()
-      
-      toast({
-        title: 'Changes saved',
-        description: `Updated ${Object.keys(pendingChanges).length} coupons`,
-      })
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Save failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   const handleReorder = async (documentIds: string[]) => {
     try {
@@ -423,6 +467,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     { key: 'coupon_status', label: 'Status' },
     { key: 'market', label: 'Market' },
     { key: 'site', label: 'Site' },
+    { key: 'validation', label: 'Issues' },
     { key: 'actions', label: 'Actions' },
   ]
 
@@ -436,116 +481,152 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     if (col.headerName === 'Delete') {
       return visibleColumns.actions
     }
+    // Show validation column
+    if (col.headerName === 'Issues') {
+      return visibleColumns.validation
+    }
     return true
   })
 
   return (
     <div className="flex flex-col h-full">
-      {/* Filters */}
-      <div className="flex gap-4 p-4 border-b bg-card">
-        <Input
-          placeholder="Search titles..."
-          value={filters.q || ''}
-          onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value }))}
-          className="max-w-xs"
+      {/* Enhanced Filters with Saved Views */}
+      <div className="flex flex-col gap-4 p-4 border-b bg-card">
+        {/* Saved Views */}
+        <SavedViewsManager 
+          filters={filters}
+          onFiltersChange={setFilters}
         />
-        <Input
-          placeholder="Search merchant..."
-          value={filters.merchant || ''}
-          onChange={(e) => setFilters(prev => ({ ...prev, merchant: e.target.value }))}
-          className="max-w-xs"
-        />
-        <Select
-          value={filters.market || 'all'}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, market: value === 'all' ? undefined : value }))}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Market" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Markets</SelectItem>
-            <SelectItem value="US">US</SelectItem>
-            <SelectItem value="UK">UK</SelectItem>
-            <SelectItem value="CA">CA</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.coupon_status || 'all'}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, coupon_status: value === 'all' ? undefined : value }))}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="upcoming">Upcoming</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowColumnToggle(!showColumnToggle)}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Columns
-        </Button>
-        <div className="flex-1" />
         
-        {/* Bulk Actions */}
-        {selectedRows.length > 0 && (
-          <div className="flex items-center gap-2 border-l pl-4">
-            <span className="text-sm text-muted-foreground">
-              {selectedRows.length} selected
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkDuplicate}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Duplicate
-            </Button>
-            <Select onValueChange={handleBulkStatusChange}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Set Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBulkDelete}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-        )}
+        {/* Traditional Filters */}
+        <div className="flex gap-4">
+          <Input
+            placeholder="Search titles..."
+            value={filters.q || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value }))}
+            className="max-w-xs"
+          />
+          <Input
+            placeholder="Search merchant..."
+            value={filters.merchant || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, merchant: e.target.value }))}
+            className="max-w-xs"
+          />
+          <Select
+            value={filters.site || 'all'}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, site: value === 'all' ? undefined : value }))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Site" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              <SelectItem value="main">Main</SelectItem>
+              <SelectItem value="deals">Deals</SelectItem>
+              <SelectItem value="mobile">Mobile</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.market || 'all'}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, market: value === 'all' ? undefined : value }))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Market" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Markets</SelectItem>
+              <SelectItem value="US">US</SelectItem>
+              <SelectItem value="UK">UK</SelectItem>
+              <SelectItem value="CA">CA</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.coupon_status || 'all'}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, coupon_status: value === 'all' ? undefined : value }))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowColumnToggle(!showColumnToggle)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Columns
+          </Button>
+          <div className="flex-1" />
+          
+          {/* Bulk Actions */}
+          {selectedRows.length > 0 && (
+            <div className="flex items-center gap-2 border-l pl-4">
+              <span className="text-sm text-muted-foreground">
+                {selectedRows.length} selected
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDuplicate}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
+              </Button>
+              <Select onValueChange={handleBulkStatusChange}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Set Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+              {copiedCoupon && (
+                <Button variant="outline" size="sm">
+                  <Clipboard className="h-4 w-4 mr-2" />
+                  "{copiedCoupon.coupon_title}" copied
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
+      {/* Save Button */}
+      <div className="flex items-center gap-4 p-4 border-b bg-muted/50">
+        <Button
+          onClick={handleSave}
+          disabled={pendingCount === 0 || isSaving}
+          className="flex items-center gap-2"
+        >
+          <Save className="h-4 w-4" />
+          Save {pendingCount > 0 ? `(${pendingCount})` : ''}
+        </Button>
+        
         {pendingCount > 0 && (
-          <div className="flex items-center gap-2 border-l pl-4">
-            <Button
-              variant="outline"
-              onClick={() => setPendingChanges({})}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save ({pendingCount}) {pendingCount > 0 && <span className="text-xs opacity-70">⌘S</span>}
-            </Button>
-          </div>
+          <Badge variant="secondary">
+            {pendingCount} unsaved changes
+          </Badge>
         )}
+        
+        <div className="text-sm text-muted-foreground">
+          Ctrl/Cmd+S to save • Enter to edit • Ctrl/Cmd+C/V to copy/paste
+        </div>
       </div>
 
       {/* Column Toggle Panel */}
