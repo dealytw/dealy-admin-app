@@ -3,7 +3,7 @@ import { Button } from '../components/ui/button'
 import { CouponGrid } from '../components/CouponGrid'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/use-toast'
-import { couponsAdapter } from '../data/strapiCoupons'
+import { mockCouponsAdapter as couponsAdapter } from '../data/mockCoupons'
 import type { Coupon } from '../domain/coupons'
 import { LogOut, Plus, RefreshCw } from 'lucide-react'
 

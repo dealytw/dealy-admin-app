@@ -10,7 +10,7 @@ import { Badge } from './ui/badge'
 import { MerchantSelector } from './MerchantSelector'
 import { useToast } from '../hooks/use-toast'
 import type { Coupon, CouponFilters, Merchant } from '../domain/coupons'
-import { couponsAdapter } from '../data/strapiCoupons'
+import { mockCouponsAdapter as couponsAdapter, mockMerchantsAdapter as merchantsAdapter } from '../data/mockCoupons'
 import { Trash2, Save, RotateCcw, Users } from 'lucide-react'
 import { format } from 'date-fns'
 
