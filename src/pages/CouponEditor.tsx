@@ -5,13 +5,15 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/use-toast'
 import { mockCouponsAdapter as couponsAdapter } from '../data/mockCoupons'
 import type { Coupon } from '../domain/coupons'
-import { LogOut, Plus, RefreshCw } from 'lucide-react'
+import { LogOut, Plus, RefreshCw, BarChart3 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export function CouponEditor() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { logout, user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const loadCoupons = async () => {
     setIsLoading(true)
@@ -69,6 +71,10 @@ export function CouponEditor() {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
+            <Button variant="outline" onClick={() => navigate('/dashboard')}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Dashboard
+            </Button>
             <Button variant="outline" onClick={loadCoupons} disabled={isLoading}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh

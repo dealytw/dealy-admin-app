@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AuthGuard } from "./components/AuthGuard";
 import { Login } from "./pages/Login";
 import { CouponEditor } from "./pages/CouponEditor";
+import { Dashboard } from "./pages/Dashboard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -33,11 +34,19 @@ const App = () => (
                 justifyContent: 'center' 
               }}>
                 <script dangerouslySetInnerHTML={{
-                  __html: 'window.location.replace("/coupon-editor");'
+                  __html: 'window.location.replace("/dashboard");'
                 }} />
-                Redirecting to admin panel...
+                Redirecting to dashboard...
               </div>
             } />
+            <Route 
+              path="/dashboard" 
+              element={
+                <AuthGuard>
+                  <Dashboard />
+                </AuthGuard>
+              } 
+            />
             <Route 
               path="/coupon-editor" 
               element={
