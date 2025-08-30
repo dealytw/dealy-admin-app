@@ -47,16 +47,7 @@ export function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center relative">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleBack}
-            className="absolute left-0 top-0"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+        <CardHeader className="text-center">
           <CardTitle className="text-2xl">Admin Login</CardTitle>
           <CardDescription>
             {isLoggedIn ? 'Login successful! Choose your destination' : 'Sign in to access the coupon editor'}
