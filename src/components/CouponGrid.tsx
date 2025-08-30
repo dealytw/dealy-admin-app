@@ -342,6 +342,12 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value }))}
           className="max-w-xs"
         />
+        <Input
+          placeholder="Search merchant..."
+          value={filters.merchant || ''}
+          onChange={(e) => setFilters(prev => ({ ...prev, merchant: e.target.value }))}
+          className="max-w-xs"
+        />
         <Select
           value={filters.market || 'all'}
           onValueChange={(value) => setFilters(prev => ({ ...prev, market: value === 'all' ? undefined : value }))}

@@ -63,6 +63,7 @@ export interface CouponUpdateInput {
 
 export interface CouponFilters {
   q?: string // text search
+  merchant?: string // merchant search
   market?: string
   site?: string
   coupon_status?: string

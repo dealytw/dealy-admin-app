@@ -88,6 +88,11 @@ class MockCouponsAdapter implements CouponsPort {
         (typeof c.description === 'string' && c.description.toLowerCase().includes(filters.q!.toLowerCase()))
       )
     }
+    if (filters?.merchant) {
+      coupons = coupons.filter(c => 
+        c.merchant?.name?.toLowerCase().includes(filters.merchant!.toLowerCase())
+      )
+    }
     if (filters?.market) {
       coupons = coupons.filter(c => c.market === filters.market)
     }
