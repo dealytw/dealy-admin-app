@@ -4,6 +4,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Progress } from '../components/ui/progress'
+import { AnalyticsCharts } from '../components/AnalyticsCharts'
 import { useAuth } from '../contexts/AuthContext'
 import { mockCouponsAdapter as couponsAdapter } from '../data/mockCoupons'
 import type { Coupon } from '../domain/coupons'
@@ -19,7 +20,8 @@ import {
   Target,
   BarChart3,
   LogOut,
-  Plus
+  Plus,
+  LineChart
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -197,6 +199,10 @@ export function Dashboard() {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">
+              <LineChart className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
             <TabsTrigger value="markets">Markets</TabsTrigger>
             <TabsTrigger value="activity">Recent Activity</TabsTrigger>
           </TabsList>
@@ -280,6 +286,10 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <AnalyticsCharts />
           </TabsContent>
 
           <TabsContent value="markets" className="space-y-6">
