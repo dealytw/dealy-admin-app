@@ -8,81 +8,81 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Light theme - using all four colors harmoniously */
-    --background: 42 47% 95%; /* #f9f1e8 - very light cream */
-    --foreground: 28 21% 40%; /* #826851 - muted brown for text */
+    /* Light theme - using your specific four colors */
+    --background: 39 33% 95%; /* #f7f3ed - very light cream backgrounds */
+    --foreground: 23 28% 20%; /* #422b23 - dark brown text */
 
-    --card: 42 47% 97%; /* Lighter version of cream */
-    --card-foreground: 28 21% 40%;
+    --card: 39 33% 97%; /* Slightly lighter cream for cards */
+    --card-foreground: 23 28% 20%;
 
-    --popover: 42 47% 97%;
-    --popover-foreground: 28 21% 40%;
+    --popover: 39 33% 97%;
+    --popover-foreground: 23 28% 20%;
 
-    --primary: 28 21% 40%; /* #826851 - muted brown primary */
-    --primary-foreground: 42 47% 95%; /* Light cream on brown */
+    --primary: 23 28% 20%; /* #422b23 - dark brown primary */
+    --primary-foreground: 39 33% 95%; /* Light cream on brown */
 
-    --secondary: 42 58% 82%; /* #f7d7ad - warm beige */
-    --secondary-foreground: 28 21% 30%;
+    --secondary: 359 29% 74%; /* #dba1a2 - dusty rose secondary */
+    --secondary-foreground: 23 28% 15%;
 
-    --muted: 42 58% 85%; /* Lighter warm beige */
-    --muted-foreground: 28 21% 45%;
+    --muted: 8 33% 88%; /* #efd8d6 - light dusty pink muted */
+    --muted-foreground: 23 28% 25%;
 
-    --accent: 12 45% 73%; /* #dea8a2 - dusty rose accent */
-    --accent-foreground: 28 21% 25%;
+    --accent: 8 33% 88%; /* #efd8d6 - light dusty pink accent */
+    --accent-foreground: 23 28% 20%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 42 47% 95%;
+    --destructive-foreground: 39 33% 95%;
 
-    --border: 42 58% 78%; /* Beige border */
-    --input: 42 47% 92%; /* Light cream input */
-    --ring: 28 21% 40%; /* Brown focus ring */
+    --border: 8 33% 85%; /* Slightly darker dusty pink border */
+    --input: 39 33% 92%; /* Light cream input */
+    --ring: 23 28% 20%; /* Dark brown focus ring */
 
     --radius: 0.75rem;
 
-    /* Beautiful gradients using all colors */
-    --gradient-primary: linear-gradient(135deg, hsl(28 21% 40%), hsl(28 21% 35%));
-    --gradient-accent: linear-gradient(135deg, hsl(12 45% 73%), hsl(42 58% 82%));
-    --gradient-warm: linear-gradient(135deg, hsl(42 58% 82%), hsl(42 47% 95%));
-    --shadow-elegant: 0 10px 30px -10px hsl(28 21% 40% / 0.3);
-    --shadow-soft: 0 4px 20px -4px hsl(12 45% 73% / 0.4);
+    /* Beautiful gradients using your palette */
+    --gradient-primary: linear-gradient(135deg, hsl(23 28% 20%), hsl(23 28% 15%));
+    --gradient-accent: linear-gradient(135deg, hsl(359 29% 74%), hsl(8 33% 88%));
+    --gradient-warm: linear-gradient(135deg, hsl(8 33% 88%), hsl(39 33% 95%));
+    --shadow-elegant: 0 10px 30px -10px hsl(23 28% 20% / 0.3);
+    --shadow-soft: 0 4px 20px -4px hsl(359 29% 74% / 0.4);
   }
 
   .dark {
-    /* Dark theme - inverting while maintaining warmth */
-    --background: 28 21% 8%; /* Very dark brown */
-    --foreground: 42 47% 90%; /* Light cream text */
+    /* Dark theme - inverting while maintaining your color harmony */
+    --background: 23 28% 8%; /* Very dark brown background */
+    --foreground: 39 33% 90%; /* Light cream text */
 
-    --card: 28 21% 12%; /* Dark brown cards */
-    --card-foreground: 42 47% 90%;
+    --card: 23 28% 12%; /* Dark brown cards */
+    --card-foreground: 39 33% 90%;
 
-    --popover: 28 21% 12%;
-    --popover-foreground: 42 47% 90%;
+    --popover: 23 28% 12%;
+    --popover-foreground: 39 33% 90%;
 
-    --primary: 12 45% 70%; /* Dusty rose primary in dark */
-    --primary-foreground: 28 21% 15%;
+    --primary: 359 29% 70%; /* Dusty rose primary in dark */
+    --primary-foreground: 23 28% 15%;
 
-    --secondary: 28 21% 18%; /* Dark brown secondary */
-    --secondary-foreground: 42 58% 85%;
+    --secondary: 23 28% 18%; /* Dark brown secondary */
+    --secondary-foreground: 8 33% 85%;
 
-    --muted: 28 21% 15%; /* Muted dark brown */
-    --muted-foreground: 42 58% 70%;
+    --muted: 23 28% 15%; /* Muted dark brown */
+    --muted-foreground: 8 33% 80%;
 
-    --accent: 42 58% 75%; /* Warm beige accent */
-    --accent-foreground: 28 21% 15%;
+    --accent: 8 33% 80%; /* Light dusty pink accent */
+    --accent-foreground: 23 28% 15%;
 
     --destructive: 0 62% 50%;
-    --destructive-foreground: 42 47% 90%;
+    --destructive-foreground: 39 33% 90%;
 
-    --border: 28 21% 20%; /* Dark brown border */
-    --input: 28 21% 15%; /* Dark input */
-    --ring: 12 45% 70%; /* Rose focus ring */
+    --border: 23 28% 20%; /* Dark brown border */
+    --input: 23 28% 15%; /* Dark input */
+    --ring: 359 29% 70%; /* Dusty rose focus ring */
 
     /* Dark gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(12 45% 70%), hsl(12 45% 65%));
-    --gradient-accent: linear-gradient(135deg, hsl(28 21% 18%), hsl(28 21% 12%));
-    --gradient-warm: linear-gradient(135deg, hsl(42 58% 75%), hsl(42 58% 70%));
-    --shadow-elegant: 0 10px 30px -10px hsl(12 45% 70% / 0.3);
-    --shadow-soft: 0 4px 20px -4px hsl(42 58% 75% / 0.4);
+    --gradient-primary: linear-gradient(135deg, hsl(359 29% 70%), hsl(359 29% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(23 28% 18%), hsl(23 28% 12%));
+    --gradient-warm: linear-gradient(135deg, hsl(8 33% 80%), hsl(8 33% 75%));
+    --shadow-elegant: 0 10px 30px -10px hsl(359 29% 70% / 0.3);
+    --shadow-soft: 0 4px 20px -4px hsl(8 33% 80% / 0.4);
   }
 }
 
