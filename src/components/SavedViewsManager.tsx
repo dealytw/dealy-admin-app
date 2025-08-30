@@ -23,33 +23,27 @@ interface SavedViewsManagerProps {
 
 const QUICK_VIEWS: SavedView[] = [
   {
-    id: 'active-us',
-    name: 'Active US',
-    filters: { coupon_status: 'active', market: 'US' },
-    isQuick: true
-  },
-  {
-    id: 'active-uk',
-    name: 'Active UK', 
-    filters: { coupon_status: 'active', market: 'UK' },
-    isQuick: true
-  },
-  {
-    id: 'upcoming',
-    name: 'Upcoming',
-    filters: { coupon_status: 'upcoming' },
-    isQuick: true
-  },
-  {
-    id: 'expired',
-    name: 'Expired',
-    filters: { coupon_status: 'expired' },
-    isQuick: true
-  },
-  {
-    id: 'no-affiliate',
-    name: 'Missing Links',
+    id: 'all',
+    name: 'All',
     filters: {},
+    isQuick: true
+  },
+  {
+    id: 'us',
+    name: 'US',
+    filters: { market: 'US' },
+    isQuick: true
+  },
+  {
+    id: 'uk',
+    name: 'UK', 
+    filters: { market: 'UK' },
+    isQuick: true
+  },
+  {
+    id: 'ca',
+    name: 'CA',
+    filters: { market: 'CA' },
     isQuick: true
   }
 ]
