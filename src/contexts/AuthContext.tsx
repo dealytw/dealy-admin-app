@@ -1,5 +1,3 @@
-'use client'
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { strapiClient } from '../data/strapiClient'
 
@@ -24,14 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [jwt, setJwt] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for existing JWT on mount (client-side only)
-    if (typeof window !== 'undefined') {
-      const existingJwt = strapiClient.getJWT()
-      if (existingJwt) {
-        setJwt(existingJwt)
-        // In a real app, you might want to verify the JWT is still valid
-        // by making a request to Strapi's /api/users/me endpoint
-      }
+    // Check for existing JWT on mount
+    const existingJwt = strapiClient.getJWT()
+    if (existingJwt) {
+      setJwt(existingJwt)
+      // In a real app, you might want to verify the JWT is still valid
     }
   }, [])
 
