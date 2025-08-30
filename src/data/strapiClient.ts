@@ -1,4 +1,4 @@
-// Strapi API client with JWT auth and error handling
+// Strapi API client with JWT auth and error handling for Next.js
 
 export class StrapiError extends Error {
   constructor(
@@ -25,20 +25,29 @@ class StrapiClient {
   private jwt: string | null = null
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_STRAPI_URL
+    // Use Next.js environment variable
+    this.baseUrl = process.env.NEXT_PUBLIC_STRAPI_URL || process.env.STRAPI_URL || ''
     if (!this.baseUrl) {
-      throw new Error('VITE_STRAPI_URL environment variable is required')
+      throw new Error('STRAPI_URL environment variable is required')
     }
-    // Try to restore JWT from sessionStorage
-    this.jwt = sessionStorage.getItem('strapi_jwt')
+    
+    // Remove trailing slash if present
+    this.baseUrl = this.baseUrl.replace(/\/$/, '')
+    
+    // Try to restore JWT from sessionStorage (client-side only)
+    if (typeof window !== 'undefined') {
+      this.jwt = sessionStorage.getItem('strapi_jwt')
+    }
   }
 
   setJWT(jwt: string | null) {
     this.jwt = jwt
-    if (jwt) {
-      sessionStorage.setItem('strapi_jwt', jwt)
-    } else {
-      sessionStorage.removeItem('strapi_jwt')
+    if (typeof window !== 'undefined') {
+      if (jwt) {
+        sessionStorage.setItem('strapi_jwt', jwt)
+      } else {
+        sessionStorage.removeItem('strapi_jwt')
+      }
     }
   }
 
@@ -71,9 +80,11 @@ class StrapiClient {
     })
 
     if (response.status === 401) {
-      // Clear JWT and redirect to login
+      // Clear JWT and redirect to login (client-side only)
       this.setJWT(null)
-      window.location.href = '/login'
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
       throw new StrapiError('Unauthorized', 401)
     }
 
@@ -110,7 +121,9 @@ class StrapiClient {
 
   logout() {
     this.setJWT(null)
-    window.location.href = '/login'
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
   }
 
   async get(endpoint: string): Promise<any> {
