@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
-import type { ColDef, GridReadyEvent, CellValueChangedEvent, RowDragEndEvent } from 'ag-grid-community'
+import type { ColDef, GridReadyEvent, CellValueChangedEvent, RowDragEndEvent, SelectionChangedEvent } from 'ag-grid-community'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
 
@@ -16,7 +16,7 @@ import { MerchantSelector } from './MerchantSelector'
 import { useToast } from '../hooks/use-toast'
 import type { Coupon, CouponFilters, Merchant } from '../domain/coupons'
 import { mockCouponsAdapter as couponsAdapter, mockMerchantsAdapter as merchantsAdapter } from '../data/mockCoupons'
-import { Trash2, Save, RotateCcw, Users, Settings } from 'lucide-react'
+import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3 } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface CouponGridProps {
@@ -31,6 +31,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
   const [merchantSelectorOpen, setMerchantSelectorOpen] = useState(false)
   const [selectedRowForMerchant, setSelectedRowForMerchant] = useState<string | null>(null)
   const [filters, setFilters] = useState<CouponFilters>({})
+  const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -54,6 +55,19 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
   useEffect(() => {
     setRowData(coupons)
   }, [coupons])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [pendingChanges])
 
   const StatusBadge = ({ value }: { value: string }) => {
     const variant = value === 'active' ? 'default' : 
@@ -85,6 +99,13 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
   )
 
   const columnDefs: ColDef<Coupon>[] = [
+    {
+      headerName: '',
+      width: 50,
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      pinned: 'left'
+    },
     { 
       field: 'priority',
       headerName: '#',
@@ -112,7 +133,10 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       field: 'coupon_title', 
       headerName: 'Title',
       width: 200,
-      editable: true
+      editable: true,
+      wrapText: true,
+      autoHeight: true,
+      cellEditor: 'agTextAreaCellEditor'
     },
     { 
       field: 'market', 
@@ -217,6 +241,12 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     handleReorder(allRowIds)
   }, [])
 
+  const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
+    const selectedNodes = event.api.getSelectedNodes()
+    const selectedIds = selectedNodes.map(node => node.data.documentId)
+    setSelectedRows(selectedIds)
+  }, [])
+
   const handleSave = async () => {
     if (Object.keys(pendingChanges).length === 0) return
 
@@ -298,6 +328,83 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
         ? { ...row, merchant }
         : row
     ))
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return
+    if (!confirm(`Are you sure you want to delete ${selectedRows.length} coupons?`)) return
+
+    try {
+      const deletePromises = selectedRows.map(id => couponsAdapter.remove(id))
+      await Promise.all(deletePromises)
+      setSelectedRows([])
+      onCouponsChange()
+      toast({
+        title: 'Coupons deleted',
+        description: `${selectedRows.length} coupons have been removed`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Bulk delete failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  }
+
+  const handleBulkDuplicate = async () => {
+    if (selectedRows.length === 0) return
+
+    try {
+      const selectedCoupons = rowData.filter(row => selectedRows.includes(row.documentId))
+      const createPromises = selectedCoupons.map(async coupon => {
+        const { documentId, coupon_uid, createdAt, updatedAt, merchant, ...couponData } = coupon
+        return couponsAdapter.create({
+          ...couponData,
+          merchant: merchant?.documentId,
+          coupon_title: `${coupon.coupon_title} (Copy)`,
+          priority: Math.max(...rowData.map(r => r.priority)) + 1
+        })
+      })
+      
+      await Promise.all(createPromises)
+      setSelectedRows([])
+      onCouponsChange()
+      toast({
+        title: 'Coupons duplicated',
+        description: `${selectedRows.length} coupons have been duplicated`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Bulk duplicate failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  }
+
+  const handleBulkStatusChange = async (status: 'active' | 'upcoming' | 'expired') => {
+    if (selectedRows.length === 0) return
+
+    try {
+      const updatePromises = selectedRows.map(id => 
+        couponsAdapter.update(id, { coupon_status: status })
+      )
+      
+      await Promise.all(updatePromises)
+      setSelectedRows([])
+      onCouponsChange()
+      toast({
+        title: 'Status updated',
+        description: `${selectedRows.length} coupons updated to ${status}`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Bulk status update failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
   }
 
   const pendingCount = Object.keys(pendingChanges).length
@@ -385,8 +492,44 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           Columns
         </Button>
         <div className="flex-1" />
+        
+        {/* Bulk Actions */}
+        {selectedRows.length > 0 && (
+          <div className="flex items-center gap-2 border-l pl-4">
+            <span className="text-sm text-muted-foreground">
+              {selectedRows.length} selected
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkDuplicate}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicate
+            </Button>
+            <Select onValueChange={handleBulkStatusChange}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Set Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        )}
+
         {pendingCount > 0 && (
-          <>
+          <div className="flex items-center gap-2 border-l pl-4">
             <Button
               variant="outline"
               onClick={() => setPendingChanges({})}
@@ -399,9 +542,9 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
               disabled={isSaving}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save ({pendingCount})
+              Save ({pendingCount}) {pendingCount > 0 && <span className="text-xs opacity-70">⌘S</span>}
             </Button>
-          </>
+          </div>
         )}
       </div>
 
@@ -443,14 +586,19 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           getRowId={(params) => params.data.documentId}
           onCellValueChanged={onCellValueChanged}
           onRowDragEnd={onRowDragEnd}
+          onSelectionChanged={onSelectionChanged}
+          rowSelection="multiple"
           rowDragManaged
           animateRows
-          suppressRowClickSelection
+          suppressRowClickSelection={false}
           defaultColDef={{
             sortable: true,
             filter: true,
             resizable: true,
+            cellStyle: { lineHeight: '1.4' }
           }}
+          enterNavigatesVertically={true}
+          enterNavigatesVerticallyAfterEdit={true}
         />
       </div>
 

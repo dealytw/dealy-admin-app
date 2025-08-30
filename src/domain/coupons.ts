@@ -58,6 +58,7 @@ export interface CouponUpdateInput {
   priority?: number
   starts_at?: string
   expires_at?: string
+  coupon_status?: 'upcoming' | 'active' | 'expired'
   site?: string
 }
 
