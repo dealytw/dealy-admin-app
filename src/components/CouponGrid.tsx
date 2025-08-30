@@ -291,28 +291,28 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           className="max-w-xs"
         />
         <Select
-          value={filters.market || ''}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, market: value || undefined }))}
+          value={filters.market || 'all'}
+          onValueChange={(value) => setFilters(prev => ({ ...prev, market: value === 'all' ? undefined : value }))}
         >
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Market" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Markets</SelectItem>
+            <SelectItem value="all">All Markets</SelectItem>
             <SelectItem value="US">US</SelectItem>
             <SelectItem value="UK">UK</SelectItem>
             <SelectItem value="CA">CA</SelectItem>
           </SelectContent>
         </Select>
         <Select
-          value={filters.coupon_status || ''}
-          onValueChange={(value) => setFilters(prev => ({ ...prev, coupon_status: value || undefined }))}
+          value={filters.coupon_status || 'all'}
+          onValueChange={(value) => setFilters(prev => ({ ...prev, coupon_status: value === 'all' ? undefined : value }))}
         >
           <SelectTrigger className="w-32">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="upcoming">Upcoming</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="expired">Expired</SelectItem>

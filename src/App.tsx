@@ -21,7 +21,23 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Navigate to="/coupon-editor" replace />} />
+            <Route path="/login" element={
+              <div style={{ 
+                position: 'fixed', 
+                top: 0, 
+                left: 0, 
+                width: '100%', 
+                height: '100%',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <script dangerouslySetInnerHTML={{
+                  __html: 'window.location.replace("/coupon-editor");'
+                }} />
+                Redirecting to admin panel...
+              </div>
+            } />
             <Route 
               path="/coupon-editor" 
               element={
