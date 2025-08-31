@@ -100,15 +100,5 @@ All colors MUST be HSL.
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* AG Grid dark theme customizations */
-  .ag-theme-alpine-dark {
-    --ag-background-color: hsl(var(--background));
-    --ag-foreground-color: hsl(var(--foreground));
-    --ag-border-color: hsl(var(--border));
-    --ag-header-background-color: hsl(var(--muted));
-    --ag-odd-row-background-color: hsl(var(--background));
-    --ag-even-row-background-color: hsl(var(--muted) / 0.3);
-    --ag-selected-row-background-color: hsl(var(--accent));
-    --ag-row-hover-color: hsl(var(--muted) / 0.5);
-  }
+  /* AG Grid modern theming - using built-in themes instead of custom CSS */
 }

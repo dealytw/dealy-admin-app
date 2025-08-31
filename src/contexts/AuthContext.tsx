@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { strapiClient } from '../data/strapiClient'
+import { login as strapiLogin, getAuth, setAuth, logout as strapiLogout } from '../api/strapiClient'
 
 interface User {
   id: number
@@ -22,22 +22,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [jwt, setJwt] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for existing JWT on mount
-    const existingJwt = strapiClient.getJWT()
-    if (existingJwt) {
-      setJwt(existingJwt)
-      // In a real app, you might want to verify the JWT is still valid
+    // Check for existing auth on mount
+    const auth = getAuth()
+    if (auth) {
+      setJwt(auth.jwt)
+      setUser(auth.user)
     }
   }, [])
 
   const login = async (identifier: string, password: string) => {
-    const response = await strapiClient.login(identifier, password)
+    const response = await strapiLogin(identifier, password)
     setJwt(response.jwt)
     setUser(response.user)
   }
 
   const logout = () => {
-    strapiClient.logout()
+    strapiLogout()
     setJwt(null)
     setUser(null)
   }

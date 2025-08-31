@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Progress } from '../components/ui/progress'
 import { AnalyticsCharts } from '../components/AnalyticsCharts'
 import { useAuth } from '../contexts/AuthContext'
-import { mockCouponsAdapter as couponsAdapter } from '../data/mockCoupons'
-import type { Coupon } from '../domain/coupons'
+import { couponsAdapter, merchantsAdapter } from '../data/strapiCoupons'
+import type { Coupon, Merchant } from '../domain/coupons'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,15 +21,18 @@ import {
   BarChart3,
   LogOut,
   Plus,
-  LineChart
+  LineChart,
+  RefreshCw,
+  Archive
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface DashboardStats {
   totalCoupons: number
   activeCoupons: number
-  upcomingCoupons: number
+  scheduledCoupons: number
   expiredCoupons: number
+  archivedCoupons: number
   totalMerchants: number
   marketDistribution: { [key: string]: number }
   statusDistribution: { [key: string]: number }
@@ -39,11 +42,13 @@ interface DashboardStats {
     coupon: string
     timestamp: string
   }>
+  lastUpdated: string
 }
 
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const { logout, user } = useAuth()
   const navigate = useNavigate()
 
@@ -54,15 +59,20 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     setIsLoading(true)
     try {
-      const coupons = await couponsAdapter.list()
+      // Load both coupons and merchants data
+      const [coupons, merchants] = await Promise.all([
+        couponsAdapter.list(),
+        merchantsAdapter.list()
+      ])
       
       // Calculate statistics
       const stats: DashboardStats = {
         totalCoupons: coupons.length,
         activeCoupons: coupons.filter(c => c.coupon_status === 'active').length,
-        upcomingCoupons: coupons.filter(c => c.coupon_status === 'upcoming').length,
+        scheduledCoupons: coupons.filter(c => c.coupon_status === 'scheduled').length,
         expiredCoupons: coupons.filter(c => c.coupon_status === 'expired').length,
-        totalMerchants: new Set(coupons.map(c => c.merchant?.documentId).filter(Boolean)).size,
+        archivedCoupons: coupons.filter(c => c.coupon_status === 'archived').length,
+        totalMerchants: merchants.length,
         marketDistribution: coupons.reduce((acc, c) => {
           if (c.market) {
             acc[c.market] = (acc[c.market] || 0) + 1
@@ -75,12 +85,16 @@ export function Dashboard() {
           }
           return acc
         }, {} as { [key: string]: number }),
-        recentActivity: coupons.slice(-5).map(c => ({
-          id: c.documentId,
-          type: 'created' as const,
-          coupon: c.coupon_title,
-          timestamp: c.createdAt || new Date().toISOString()
-        }))
+        recentActivity: coupons
+          .sort((a, b) => new Date(b.updatedAt || b.createdAt || '').getTime() - new Date(a.updatedAt || a.createdAt || '').getTime())
+          .slice(0, 5)
+          .map(c => ({
+            id: c.documentId,
+            type: 'created' as const, // We'll enhance this later with real activity tracking
+            coupon: c.coupon_title,
+            timestamp: c.updatedAt || c.createdAt || new Date().toISOString()
+          })),
+        lastUpdated: new Date().toISOString()
       }
       
       setStats(stats)
@@ -110,6 +124,11 @@ export function Dashboard() {
     )
   }
 
+  const handleManualRefresh = () => {
+    loadDashboardData()
+    setLastRefresh(new Date())
+  }
+
   const activePercentage = stats.totalCoupons > 0 ? (stats.activeCoupons / stats.totalCoupons) * 100 : 0
 
   return (
@@ -127,6 +146,21 @@ export function Dashboard() {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Last updated: {lastRefresh.toLocaleTimeString()}</span>
+              <div className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+                <span>{isLoading ? 'Refreshing...' : 'Live'}</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleManualRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
             <Button variant="outline" onClick={() => navigate('/coupon-editor')}>
               <Plus className="h-4 w-4 mr-2" />
               Manage Coupons
@@ -171,17 +205,46 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+              <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.upcomingCoupons}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.scheduledCoupons}</div>
               <p className="text-xs text-muted-foreground">
-                Ready to launch
+                {stats.totalCoupons > 0 ? ((stats.scheduledCoupons / stats.totalCoupons) * 100).toFixed(1) : '0'}% of total
               </p>
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Expired</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{stats.expiredCoupons}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalCoupons > 0 ? ((stats.expiredCoupons / stats.totalCoupons) * 100).toFixed(1) : '0'}% of total
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Archived</CardTitle>
+              <Archive className="h-4 w-4 text-gray-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-600">{stats.archivedCoupons}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalCoupons > 0 ? ((stats.archivedCoupons / stats.totalCoupons) * 100).toFixed(1) : '0'}% of total
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Metrics Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Merchants</CardTitle>
@@ -191,6 +254,36 @@ export function Dashboard() {
               <div className="text-2xl font-bold">{stats.totalMerchants}</div>
               <p className="text-xs text-muted-foreground">
                 Active partnerships
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Coupons/Merchant</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats.totalMerchants > 0 ? (stats.totalCoupons / stats.totalMerchants).toFixed(1) : '0'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Per merchant average
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Data Freshness</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {Math.floor((Date.now() - new Date(stats.lastUpdated).getTime()) / 1000)}s
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Seconds ago
               </p>
             </CardContent>
           </Card>
@@ -227,7 +320,8 @@ export function Dashboard() {
                         <Badge 
                           variant={
                             status === 'active' ? 'default' : 
-                            status === 'upcoming' ? 'secondary' : 'outline'
+                            status === 'scheduled' ? 'secondary' : 
+                            status === 'expired' ? 'destructive' : 'outline'
                           }
                         >
                           {status}
@@ -358,7 +452,11 @@ export function Dashboard() {
                             </p>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate('/coupon-editor')}
+                        >
                           View
                         </Button>
                       </div>

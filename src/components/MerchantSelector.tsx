@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { ScrollArea } from './ui/scroll-area'
 import type { Merchant } from '../domain/coupons'
-import { mockMerchantsAdapter as merchantsAdapter } from '../data/mockCoupons'
+import { nextApiMerchantsAdapter as merchantsAdapter } from '../data/nextApiCoupons'
 import { useToast } from '../hooks/use-toast'
 import { Search, Loader2 } from 'lucide-react'
 

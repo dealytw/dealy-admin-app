@@ -29,21 +29,39 @@ const QUICK_VIEWS: SavedView[] = [
     isQuick: true
   },
   {
-    id: 'us',
-    name: 'US',
-    filters: { market: 'US' },
+    id: 'hk',
+    name: 'HK',
+    filters: { market: 'HK' },
     isQuick: true
   },
   {
-    id: 'uk',
-    name: 'UK', 
-    filters: { market: 'UK' },
+    id: 'tw',
+    name: 'TW', 
+    filters: { market: 'TW' },
     isQuick: true
   },
   {
-    id: 'ca',
-    name: 'CA',
-    filters: { market: 'CA' },
+    id: 'jp',
+    name: 'JP',
+    filters: { market: 'JP' },
+    isQuick: true
+  },
+  {
+    id: 'kr',
+    name: 'KR',
+    filters: { market: 'KR' },
+    isQuick: true
+  },
+  {
+    id: 'sg',
+    name: 'SG',
+    filters: { market: 'SG' },
+    isQuick: true
+  },
+  {
+    id: 'my',
+    name: 'MY',
+    filters: { market: 'MY' },
     isQuick: true
   }
 ]
@@ -102,12 +120,12 @@ export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManage
 
   return (
     <div className="flex items-center gap-2">
-      {/* Quick View Badges */}
+      {/* Market Filter Badges */}
       <div className="flex gap-1">
         {QUICK_VIEWS.map(view => (
           <Badge
             key={view.id}
-            variant="outline"
+            variant={filters.market === view.filters.market ? "default" : "outline"}
             className="cursor-pointer hover:bg-accent"
             onClick={() => handleApplyView(view)}
           >
@@ -115,89 +133,6 @@ export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManage
           </Badge>
         ))}
       </div>
-
-      {/* Saved Views Dropdown */}
-      {savedViews.length > 0 && (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Bookmark className="h-3 w-3 mr-1" />
-              Saved
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56" align="start">
-            <div className="space-y-1">
-              {savedViews.map(view => (
-                <div key={view.id} className="flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1 justify-start"
-                    onClick={() => handleApplyView(view)}
-                  >
-                    {view.name}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteView(view.id)}
-                    className="h-8 w-8 p-0 text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {/* Save Current View */}
-      {hasActiveFilters && (
-        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Plus className="h-3 w-3 mr-1" />
-              Save View
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Save Current View</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="view-name">View Name</Label>
-                <Input
-                  id="view-name"
-                  value={newViewName}
-                  onChange={(e) => setNewViewName(e.target.value)}
-                  placeholder="Enter view name..."
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSaveCurrentView}
-                  disabled={!newViewName.trim()}
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Clear Filters */}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-          Clear
-        </Button>
-      )}
     </div>
   )
 }

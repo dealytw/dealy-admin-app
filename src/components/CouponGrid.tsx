@@ -2,8 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
 import type { ColDef, GridReadyEvent, CellValueChangedEvent, RowDragEndEvent, SelectionChangedEvent } from 'ag-grid-community'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
+// Import AG Grid CSS for proper styling
+import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -18,22 +18,23 @@ import { ValidationCell } from './ValidationBadges'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useToast } from '../hooks/use-toast'
 import type { Coupon, CouponFilters, Merchant } from '../domain/coupons'
-import { mockCouponsAdapter as couponsAdapter, mockMerchantsAdapter as merchantsAdapter } from '../data/mockCoupons'
+import { couponsAdapter, merchantsAdapter } from '../data/strapiCoupons'
 import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface CouponGridProps {
   coupons: Coupon[]
   onCouponsChange: () => void
+  filters: CouponFilters
+  onFiltersChange: (filters: CouponFilters) => void
 }
 
-export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
+export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange }: CouponGridProps) {
   const [rowData, setRowData] = useState<Coupon[]>([])
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [merchantSelectorOpen, setMerchantSelectorOpen] = useState(false)
   const [selectedRowForMerchant, setSelectedRowForMerchant] = useState<string | null>(null)
-  const [filters, setFilters] = useState<CouponFilters>({})
   const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
   const [visibleColumns, setVisibleColumns] = useState({
@@ -132,11 +133,12 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     copiedCoupon
   })
 
-  const StatusBadge = ({ value }: { value: string }) => {
-    const variant = value === 'active' ? 'default' : 
-                  value === 'upcoming' ? 'secondary' : 'outline'
-    return <Badge variant={variant}>{value}</Badge>
-  }
+     const StatusBadge = ({ value }: { value: string }) => {
+     const variant = value === 'active' ? 'default' : 
+                   value === 'scheduled' ? 'secondary' : 
+                   value === 'expired' ? 'destructive' : 'outline'
+     return <Badge variant={variant}>{value}</Badge>
+   }
 
   const MerchantCell = ({ data }: any) => (
     <button
@@ -165,9 +167,12 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     {
       headerName: '',
       width: 50,
+      pinned: 'left',
+      suppressMenu: true,
+      sortable: false,
+      filter: false,
       checkboxSelection: true,
-      headerCheckboxSelection: true,
-      pinned: 'left'
+      headerCheckboxSelection: true
     },
     { 
       field: 'priority',
@@ -192,6 +197,16 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       editable: false,
       valueGetter: (params) => params.data.merchant?.name || ''
     },
+         { 
+       field: 'market', 
+       headerName: 'Market',
+       width: 100,
+       editable: true,
+       cellEditor: 'agSelectCellEditor',
+       cellEditorParams: {
+         values: ['HK', 'TW', 'JP', 'KR', 'SG', 'MY']
+       }
+     },
     { 
       field: 'coupon_title', 
       headerName: 'Title',
@@ -200,12 +215,6 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       wrapText: true,
       autoHeight: true,
       cellEditor: 'agTextAreaCellEditor'
-    },
-    { 
-      field: 'market', 
-      headerName: 'Market',
-      width: 120,
-      editable: true
     },
     { 
       field: 'value', 
@@ -219,24 +228,44 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       width: 120,
       editable: true
     },
+         { 
+       field: 'coupon_type', 
+       headerName: 'Type',
+       width: 120,
+       editable: true,
+       cellEditor: 'agSelectCellEditor',
+       cellEditorParams: {
+         values: ['promo_code', 'coupon', 'discount']
+       }
+     },
     { 
-      field: 'coupon_type', 
-      headerName: 'Type',
-      width: 120,
-      editable: true
+      field: 'affiliate_link', 
+      headerName: 'Affiliate Link',
+      width: 150,
+      editable: true,
+      cellRenderer: ({ value }: any) => (
+        <div className="truncate" title={value}>
+          {value || ''}
+        </div>
+      )
     },
     { 
-      field: 'site', 
-      headerName: 'Site',
-      width: 100,
-      editable: true
+      field: 'description', 
+      headerName: 'Description',
+      width: 200,
+      editable: true,
+      wrapText: true,
+      autoHeight: true,
+      cellEditor: 'agTextAreaCellEditor'
     },
-    {
-      field: 'coupon_status',
-      headerName: 'Status',
-      width: 100,
-      cellRenderer: StatusBadge,
-      editable: false
+    { 
+      field: 'editor_tips', 
+      headerName: 'Editor Tips',
+      width: 150,
+      editable: true,
+      wrapText: true,
+      autoHeight: true,
+      cellEditor: 'agTextAreaCellEditor'
     },
     { 
       field: 'starts_at', 
@@ -254,6 +283,17 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       valueFormatter: (params) => 
         params.value ? format(new Date(params.value), 'MMM dd, yyyy') : ''
     },
+         {
+       field: 'coupon_status',
+       headerName: 'Status',
+       width: 100,
+       editable: true,
+       cellEditor: 'agSelectCellEditor',
+       cellEditorParams: {
+         values: ['active', 'scheduled', 'expired', 'archived']
+       },
+       cellRenderer: StatusBadge
+     },
     {
       field: 'user_count',
       headerName: 'Users',
@@ -266,6 +306,22 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
         </div>
       )
     },
+    { 
+      field: 'last_click_at', 
+      headerName: 'Last Click',
+      width: 120,
+      editable: false,
+      valueFormatter: (params) => 
+        params.value ? format(new Date(params.value), 'MMM dd, yyyy HH:mm') : ''
+    },
+    {
+      field: 'display_count',
+      headerName: 'Displays',
+      width: 80,
+      editable: false,
+      type: 'numericColumn'
+    },
+    
     {
       headerName: 'Issues',
       width: 150,
@@ -427,7 +483,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
     }
   }
 
-  const handleBulkStatusChange = async (status: 'active' | 'upcoming' | 'expired') => {
+     const handleBulkStatusChange = async (status: 'active' | 'expired' | 'scheduled' | 'archived') => {
     if (selectedRows.length === 0) return
 
     try {
@@ -473,6 +529,11 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
 
   // Filter column definitions based on visibility
   const filteredColumnDefs = columnDefs.filter(col => {
+    // Always show checkbox column
+    if (col.headerName === '') {
+      return true
+    }
+    
     const field = col.field as keyof typeof visibleColumns
     if (field) {
       return visibleColumns[field]
@@ -495,7 +556,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
         {/* Saved Views */}
         <SavedViewsManager 
           filters={filters}
-          onFiltersChange={setFilters}
+          onFiltersChange={onFiltersChange}
         />
         
         {/* Traditional Filters */}
@@ -503,56 +564,47 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           <Input
             placeholder="Search titles..."
             value={filters.q || ''}
-            onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value }))}
+            onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
             className="max-w-xs"
           />
           <Input
             placeholder="Search merchant..."
             value={filters.merchant || ''}
-            onChange={(e) => setFilters(prev => ({ ...prev, merchant: e.target.value }))}
+            onChange={(e) => onFiltersChange({ ...filters, merchant: e.target.value })}
             className="max-w-xs"
           />
-          <Select
-            value={filters.site || 'all'}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, site: value === 'all' ? undefined : value }))}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
-              <SelectItem value="main">Main</SelectItem>
-              <SelectItem value="deals">Deals</SelectItem>
-              <SelectItem value="mobile">Mobile</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
+          
+                               <Select
             value={filters.market || 'all'}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, market: value === 'all' ? undefined : value }))}
+            onValueChange={(value) => onFiltersChange({ ...filters, market: value === 'all' ? undefined : value })}
           >
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Market" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Markets</SelectItem>
-              <SelectItem value="US">US</SelectItem>
-              <SelectItem value="UK">UK</SelectItem>
-              <SelectItem value="CA">CA</SelectItem>
-            </SelectContent>
-          </Select>
+             <SelectTrigger className="w-32">
+               <SelectValue placeholder="Market" />
+             </SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">All Markets</SelectItem>
+               <SelectItem value="HK">HK</SelectItem>
+               <SelectItem value="TW">TW</SelectItem>
+               <SelectItem value="JP">JP</SelectItem>
+               <SelectItem value="KR">KR</SelectItem>
+               <SelectItem value="SG">SG</SelectItem>
+               <SelectItem value="MY">MY</SelectItem>
+             </SelectContent>
+           </Select>
           <Select
             value={filters.coupon_status || 'all'}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, coupon_status: value === 'all' ? undefined : value }))}
+            onValueChange={(value) => onFiltersChange({ ...filters, coupon_status: value === 'all' ? undefined : value })}
           >
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-            </SelectContent>
+                         <SelectContent>
+               <SelectItem value="all">All Status</SelectItem>
+               <SelectItem value="active">Active</SelectItem>
+               <SelectItem value="expired">Expired</SelectItem>
+               <SelectItem value="scheduled">Scheduled</SelectItem>
+               <SelectItem value="archived">Archived</SelectItem>
+             </SelectContent>
           </Select>
           <Button
             variant="outline"
@@ -578,16 +630,17 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
                 <Copy className="h-4 w-4 mr-2" />
                 Duplicate
               </Button>
-              <Select onValueChange={handleBulkStatusChange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Set Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
+                             <Select onValueChange={handleBulkStatusChange}>
+                 <SelectTrigger className="w-32">
+                   <SelectValue placeholder="Set Status" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="active">Active</SelectItem>
+                   <SelectItem value="scheduled">Scheduled</SelectItem>
+                   <SelectItem value="expired">Expired</SelectItem>
+                   <SelectItem value="archived">Archived</SelectItem>
+                 </SelectContent>
+               </Select>
               <Button
                 variant="destructive"
                 size="sm"
@@ -659,7 +712,7 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
       )}
 
       {/* Grid */}
-      <div className="flex-1 ag-theme-alpine-dark">
+      <div className="flex-1 ag-theme-quartz">
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -668,10 +721,11 @@ export function CouponGrid({ coupons, onCouponsChange }: CouponGridProps) {
           onCellValueChanged={onCellValueChanged}
           onRowDragEnd={onRowDragEnd}
           onSelectionChanged={onSelectionChanged}
+
           rowSelection="multiple"
+          suppressRowClickSelection={false}
           rowDragManaged
           animateRows
-          suppressRowClickSelection={false}
           defaultColDef={{
             sortable: true,
             filter: true,

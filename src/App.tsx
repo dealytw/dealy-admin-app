@@ -21,23 +21,15 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Navigate to="/coupon-editor" replace />} />
             <Route path="/login" element={<Login />} />
             <Route 
               path="/dashboard" 
-              element={
-                <AuthGuard>
-                  <Dashboard />
-                </AuthGuard>
-              } 
+              element={<Dashboard />}
             />
             <Route 
               path="/coupon-editor" 
-              element={
-                <AuthGuard>
-                  <CouponEditor />
-                </AuthGuard>
-              } 
+              element={<CouponEditor />}
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

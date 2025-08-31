@@ -1,25 +1,29 @@
-import { useState, useEffect } from 'react'
-import { Button } from '../components/ui/button'
-import { CouponGrid } from '../components/CouponGrid'
-import { useAuth } from '../contexts/AuthContext'
-import { useToast } from '../hooks/use-toast'
-import { couponsAdapter } from '../data/strapiCoupons'
-import type { Coupon, CouponFilters } from '../domain/coupons'
-import { LogOut, Plus, RefreshCw, BarChart3 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+"use client";
 
-export function CouponEditor() {
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '../../components/ui/button'
+import { CouponGrid } from '../../components/CouponGrid'
+import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../hooks/use-toast'
+import { nextApiCouponsAdapter as couponsAdapter } from '../../data/nextApiCoupons'
+import type { Coupon } from '../../domain/coupons'
+import { LogOut, Plus, RefreshCw, BarChart3 } from 'lucide-react'
+
+export default function CouponEditor() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [filters, setFilters] = useState<CouponFilters>({})
   const { logout, user } = useAuth()
   const { toast } = useToast()
-  const navigate = useNavigate()
+  const router = useRouter()
 
-  const loadCoupons = async (currentFilters?: CouponFilters) => {
+  const loadCoupons = async () => {
     setIsLoading(true)
     try {
-      const data = await couponsAdapter.list(currentFilters || filters)
+      const data = await couponsAdapter.list()
       setCoupons(data)
     } catch (error) {
       toast({
@@ -35,11 +39,6 @@ export function CouponEditor() {
   useEffect(() => {
     loadCoupons()
   }, [])
-
-  const handleFiltersChange = (newFilters: CouponFilters) => {
-    setFilters(newFilters)
-    loadCoupons(newFilters)
-  }
 
   const handleCreateNew = async () => {
     try {
@@ -77,7 +76,7 @@ export function CouponEditor() {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
-            <Button variant="outline" onClick={() => navigate('/dashboard')}>
+            <Button variant="outline" onClick={() => router.push('/dashboard')}>
               <BarChart3 className="h-4 w-4 mr-2" />
               Dashboard
             </Button>
@@ -107,12 +106,7 @@ export function CouponEditor() {
             </div>
           </div>
         ) : (
-          <CouponGrid
-            coupons={coupons}
-            onCouponsChange={loadCoupons}
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-          />
+          <CouponGrid coupons={coupons} onCouponsChange={loadCoupons} />
         )}
       </main>
     </div>
