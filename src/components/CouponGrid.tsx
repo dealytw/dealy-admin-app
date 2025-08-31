@@ -37,6 +37,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [selectedRowForMerchant, setSelectedRowForMerchant] = useState<string | null>(null)
   const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
+  const [merchants, setMerchants] = useState<Merchant[]>([]) // Store all merchants for lookup
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -58,8 +59,30 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const gridRef = useRef<AgGridReact>(null)
   const { toast } = useToast()
 
+  // Load merchants for lookup
+  useEffect(() => {
+    const loadMerchants = async () => {
+      try {
+        console.log('Loading merchants for lookup...')
+        const merchantData = await merchantsAdapter.list()
+        console.log('Loaded merchants:', merchantData)
+        setMerchants(merchantData)
+      } catch (error) {
+        console.error('Failed to load merchants for lookup:', error)
+      }
+    }
+    loadMerchants()
+  }, [])
+
   useEffect(() => {
     setRowData(coupons)
+    // Debug: log coupon data to see merchant structure
+    console.log('Coupons loaded:', coupons.map(c => ({
+      documentId: c.documentId,
+      merchant: c.merchant,
+      merchant_name: c.merchant_name,
+      merchant_id: c.merchant_id
+    })))
   }, [coupons])
 
   // Enhanced keyboard shortcuts
@@ -140,17 +163,58 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
      return <Badge variant={variant}>{value}</Badge>
    }
 
-  const MerchantCell = ({ data }: any) => (
-    <button
-      onClick={() => {
-        setSelectedRowForMerchant(data.documentId)
-        setMerchantSelectorOpen(true)
-      }}
-      className="text-left hover:underline"
-    >
-      {data.merchant?.name || 'Select merchant...'}
-    </button>
-  )
+    const MerchantCell = ({ data }: any) => {
+    // Get merchant name by looking up the merchant ID
+    const getMerchantName = () => {
+      console.log('MerchantCell data:', {
+        documentId: data.documentId,
+        merchant: data.merchant,
+        merchant_name: data.merchant_name,
+        merchant_id: data.merchant_id,
+        merchantsLoaded: merchants.length
+      })
+
+      // If merchant is a populated relation object with merchant_name
+      if (data.merchant?.merchant_name) {
+        console.log('Found merchant_name in relation:', data.merchant.merchant_name)
+        return data.merchant.merchant_name
+      }
+      // If merchant is a populated relation object with name
+      if (data.merchant?.name) {
+        console.log('Found name in relation:', data.merchant.name)
+        return data.merchant.name
+      }
+      // If merchant is just an ID (string), look it up in our merchants array
+      if (data.merchant && typeof data.merchant === 'string') {
+        console.log('Looking up merchant ID:', data.merchant)
+        const foundMerchant = merchants.find(m => m.documentId === data.merchant)
+        console.log('Found merchant:', foundMerchant)
+        return foundMerchant ? foundMerchant.name : data.merchant // Return ID if not found
+      }
+      // If merchant is a populated object with documentId, look it up
+      if (data.merchant?.documentId) {
+        const foundMerchant = merchants.find(m => m.documentId === data.merchant.documentId)
+        console.log('Looking up merchant documentId:', data.merchant.documentId, 'Found:', foundMerchant)
+        return foundMerchant ? foundMerchant.name : data.merchant.merchant_name || data.merchant.documentId
+      }
+      // Fallback to direct fields
+      const fallback = data.merchant_name || data.merchant_id || 'Select merchant...'
+      console.log('Using fallback:', fallback)
+      return fallback
+    }
+    
+    return (
+      <button
+        onClick={() => {
+          setSelectedRowForMerchant(data.documentId)
+          setMerchantSelectorOpen(true)
+        }}
+        className="text-left hover:underline"
+      >
+        {getMerchantName()}
+      </button>
+    )
+  }
 
   const DeleteCell = ({ data }: any) => (
     <Button
@@ -195,7 +259,22 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       width: 150,
       cellRenderer: MerchantCell,
       editable: false,
-      valueGetter: (params) => params.data.merchant?.name || ''
+      valueGetter: (params) => {
+        const data = params.data
+        // Handle Strapi relation structure
+        if (data.merchant?.merchant_name) {
+          return data.merchant.merchant_name
+        }
+        if (data.merchant?.name) {
+          return data.merchant.name
+        }
+        if (data.merchant && typeof data.merchant === 'string') {
+          // Look up merchant name from our merchants array
+          const foundMerchant = merchants.find(m => m.documentId === data.merchant)
+          return foundMerchant ? foundMerchant.name : data.merchant
+        }
+        return data.merchant_name || data.merchant_id || ''
+      }
     },
          { 
        field: 'market', 
@@ -422,10 +501,17 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       }
     }))
 
-    // Update the row data immediately for UI
+    // Update the row data immediately for UI with the full merchant object
     setRowData(prev => prev.map(row => 
       row.documentId === selectedRowForMerchant 
-        ? { ...row, merchant }
+        ? { 
+            ...row, 
+            merchant: {
+              documentId: merchant.documentId,
+              merchant_name: merchant.name,
+              slug: merchant.slug
+            }
+          }
         : row
     ))
   }

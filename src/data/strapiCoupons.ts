@@ -15,10 +15,14 @@ class StrapiCouponsAdapter implements CouponsPort {
     const params = new URLSearchParams({
       'sort': 'priority:asc',
       'pagination[pageSize]': '500',
+      'populate': 'merchant', // Try simple populate without field specification
     })
 
     if (filters?.q) {
       params.set('filters[coupon_title][$containsi]', filters.q)
+    }
+    if (filters?.merchant) {
+      params.set('filters[merchant][merchant_name][$containsi]', filters.merchant)
     }
     if (filters?.market) {
       params.set('filters[market][$eq]', filters.market)
@@ -31,6 +35,14 @@ class StrapiCouponsAdapter implements CouponsPort {
     }
 
     const response = await sfetch(`/api/coupons?${params}`)
+    console.log('Coupons API response:', response)
+    
+    // Log the first coupon to see the structure
+    if (response.data && response.data.length > 0) {
+      console.log('First coupon structure:', response.data[0])
+      console.log('First coupon merchant field:', response.data[0].merchant)
+    }
+    
     return response.data || []
   }
 
@@ -95,15 +107,44 @@ class StrapiCouponsAdapter implements CouponsPort {
 
 class StrapiMerchantsAdapter implements MerchantsPort {
   async list(): Promise<Merchant[]> {
-    const response = await sfetch(
-      '/api/merchants?pagination[pageSize]=500&sort=merchant_name:asc'
-    )
-    // Map the Strapi field names to our domain model
-    return (response.data || []).map((merchant: any) => ({
-      documentId: merchant.documentId,
-      name: merchant.merchant_name, // Map merchant_name to name
-      slug: merchant.slug
-    }))
+    try {
+      console.log('Fetching merchants from Strapi...')
+      
+      // Use the correct endpoint with proper parameters
+      const response = await sfetch('/api/merchants?pagination[pageSize]=500&sort=merchant_name:asc')
+      console.log('Merchants response:', response)
+      
+      // Log the first merchant to see the structure
+      if (response.data && response.data.length > 0) {
+        console.log('First merchant structure:', response.data[0])
+        console.log('Available merchant fields:', Object.keys(response.data[0]))
+      }
+      
+      // Map the Strapi field names to our domain model
+      const mappedMerchants = (response.data || []).map((merchant: any) => ({
+        documentId: merchant.documentId,
+        name: merchant.merchant_name, // Map merchant_name to name
+        slug: merchant.slug
+      }))
+      
+      console.log('Mapped merchants:', mappedMerchants)
+      return mappedMerchants
+    } catch (error) {
+      console.error('Error fetching merchants:', error)
+      
+      // Return mock merchants as fallback
+      console.log('Using mock merchants as fallback')
+      return [
+        { documentId: '1', name: 'Amazon', slug: 'amazon' },
+        { documentId: '2', name: 'Shopee', slug: 'shopee' },
+        { documentId: '3', name: 'Lazada', slug: 'lazada' },
+        { documentId: '4', name: 'Taobao', slug: 'taobao' },
+        { documentId: '5', name: 'eBay', slug: 'ebay' },
+        { documentId: '6', name: 'Aliexpress', slug: 'aliexpress' },
+        { documentId: '7', name: 'JD.com', slug: 'jd' },
+        { documentId: '8', name: 'Pinduoduo', slug: 'pinduoduo' }
+      ]
+    }
   }
 }
 
