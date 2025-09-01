@@ -13,12 +13,15 @@ interface SavedView {
   id: string
   name: string
   filters: CouponFilters
+  visibleColumns?: Record<string, boolean>
   isQuick?: boolean
 }
 
 interface SavedViewsManagerProps {
   filters: CouponFilters
   onFiltersChange: (filters: CouponFilters) => void
+  visibleColumns?: Record<string, boolean>
+  onVisibleColumnsChange?: (columns: Record<string, boolean>) => void
 }
 
 const QUICK_VIEWS: SavedView[] = [
@@ -66,7 +69,12 @@ const QUICK_VIEWS: SavedView[] = [
   }
 ]
 
-export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManagerProps) {
+export function SavedViewsManager({ 
+  filters, 
+  onFiltersChange, 
+  visibleColumns, 
+  onVisibleColumnsChange 
+}: SavedViewsManagerProps) {
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [newViewName, setNewViewName] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -95,7 +103,8 @@ export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManage
     const newView: SavedView = {
       id: `custom-${Date.now()}`,
       name: newViewName.trim(),
-      filters: { ...filters }
+      filters: { ...filters },
+      visibleColumns: visibleColumns ? { ...visibleColumns } : undefined
     }
 
     saveViews([...savedViews, newView])
@@ -109,6 +118,9 @@ export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManage
 
   const handleApplyView = (view: SavedView) => {
     onFiltersChange(view.filters)
+    if (view.visibleColumns && onVisibleColumnsChange) {
+      onVisibleColumnsChange(view.visibleColumns)
+    }
   }
 
   const handleClearFilters = () => {
@@ -133,6 +145,80 @@ export function SavedViewsManager({ filters, onFiltersChange }: SavedViewsManage
           </Badge>
         ))}
       </div>
+
+      {/* Save Current View Button */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Save View
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Current View</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="view-name">View Name</Label>
+              <Input
+                id="view-name"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                placeholder="Enter view name..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveCurrentView()
+                  }
+                }}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              This will save your current filters and column visibility settings.
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCurrentView} disabled={!newViewName.trim()}>
+                Save View
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Views Dropdown */}
+      {savedViews.length > 0 && (
+        <Select onValueChange={(value) => {
+          const view = savedViews.find(v => v.id === value)
+          if (view) handleApplyView(view)
+        }}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Saved Views" />
+          </SelectTrigger>
+          <SelectContent>
+            {savedViews.map(view => (
+              <SelectItem key={view.id} value={view.id}>
+                <div className="flex items-center justify-between w-full">
+                  <span>{view.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteView(view.id)
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   )
 }

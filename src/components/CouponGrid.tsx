@@ -22,6 +22,41 @@ import { couponsAdapter, merchantsAdapter } from '../data/strapiCoupons'
 import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard } from 'lucide-react'
 import { format } from 'date-fns'
 
+// --- util: optional auth header from session (works for JWT or proxy) ---
+function authHeaders() {
+  try {
+    const raw = sessionStorage.getItem('auth');
+    if (!raw) return {};
+    const { jwt } = JSON.parse(raw);
+    return jwt ? { Authorization: `Bearer ${jwt}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+// --- util: run promises with limited concurrency ---
+async function runWithConcurrency(tasks: Array<() => Promise<any>>, limit = 4) {
+  const q = tasks.slice();
+  const workers = Array.from({ length: Math.min(limit, q.length) }, async () => {
+    while (q.length) {
+      const fn = q.shift()!;
+      try { await fn(); } catch (e) { console.error('reorder op failed:', e); }
+    }
+  });
+  await Promise.all(workers);
+}
+
+// --- config: how to bucket priorities ---
+// Default: per merchant only. If you want per (merchant+market+site), set COMPOSITE_KEY = true.
+const COMPOSITE_KEY = false;
+function bucketKey(row: any) {
+  const m = row.merchant?.documentId || 'none';
+  if (!COMPOSITE_KEY) return m;
+  const market = row.market || '';
+  const site = row.site || '';
+  return `${m}|${market}|${site}`;
+}
+
 interface CouponGridProps {
   coupons: Coupon[]
   onCouponsChange: () => void
@@ -58,6 +93,79 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [showColumnToggle, setShowColumnToggle] = useState(false)
   const gridRef = useRef<AgGridReact>(null)
   const { toast } = useToast()
+
+  // --- core reorder function ---
+  const STRAPI_BASE = import.meta.env.VITE_STRAPI_URL?.replace(/\/$/, '');
+
+  async function reorderByBucket(api: any) {
+    try {
+      // 1) group visible/sorted nodes by bucket
+      const buckets = new Map<string, any[]>();
+      api.forEachNodeAfterFilterAndSort((n: any) => {
+        const k = bucketKey(n.data);
+        if (!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k)!.push(n.data);
+      });
+
+      // 2) build update jobs; top row gets largest number
+      const jobs: Array<() => Promise<any>> = [];
+      const updatesForUi: any[] = [];
+
+             for (const [, rows] of buckets) {
+         const max = rows.length;
+         rows.forEach((row, idxFromTop) => {
+           const desired = idxFromTop + 1; // top = 1 (highest priority)
+           if (row.priority !== desired) {
+             const documentId = row.documentId;
+             // optimistic UI update
+             updatesForUi.push({ ...row, priority: desired });
+
+             jobs.push(() => fetch(`${STRAPI_BASE}/api/coupons/${documentId}`, {
+               method: 'PUT',
+               headers: { 'Content-Type': 'application/json', ...authHeaders() },
+               body: JSON.stringify({ data: { priority: desired } }), // v5 requires {data}
+               cache: 'no-store',
+             }).then(r => {
+               if (!r.ok) return r.text().then(t => Promise.reject(new Error(`${r.status} ${t}`)));
+             }));
+           }
+         });
+       }
+
+      // 3) apply optimistic UI once
+      if (updatesForUi.length) {
+        api.applyTransaction({ update: updatesForUi });
+        toast({
+          title: 'Reordering...',
+          description: `Updating ${updatesForUi.length} coupon priorities`,
+        });
+      } else {
+        toast({
+          title: 'No changes needed',
+          description: 'Priorities are already in the correct order',
+        });
+        return;
+      }
+
+      // 4) flush to server (gentle concurrency)
+      await runWithConcurrency(jobs, 4);
+
+      // 5) (optional) refresh cells so the priority column re-renders
+      api.refreshCells({ force: true });
+
+      toast({
+        title: 'Priorities updated',
+        description: `Successfully updated ${updatesForUi.length} coupon priorities`,
+      });
+    } catch (error) {
+      console.error('Reorder failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Reorder failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
 
   // Load merchants for lookup
   useEffect(() => {
@@ -227,6 +335,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     </Button>
   )
 
+  const PriorityCell = ({ value }: { value: number }) => (
+    <div className="flex items-center justify-center h-full min-h-[40px]">
+      <Badge variant="secondary" className="font-mono text-xs">
+        {value || 0}
+      </Badge>
+    </div>
+  )
+
   const columnDefs: ColDef<Coupon>[] = [
     {
       headerName: '',
@@ -241,10 +357,19 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'priority',
       headerName: '#',
-      width: 60,
+      width: 100,
       rowDrag: true,
       editable: true,
-      type: 'numericColumn'
+      type: 'numericColumn',
+      cellRenderer: PriorityCell,
+      cellStyle: { 
+        fontWeight: 'bold',
+        backgroundColor: '#f3f4f6',
+        textAlign: 'center'
+      },
+      valueFormatter: (params) => {
+        return params.value ? params.value.toString() : '0'
+      }
     },
     { 
       field: 'coupon_uid', 
@@ -403,7 +528,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     
     {
       headerName: 'Issues',
-      width: 150,
+      width: 200,
       cellRenderer: ValidationCell,
       editable: false,
       sortable: false,
@@ -439,13 +564,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     
     if (!overNode || movingNode === overNode) return
 
-    // Get all visible node IDs in order
-    const allRowIds: string[] = []
-    gridRef.current?.api.forEachNodeAfterFilterAndSort((node) => {
-      allRowIds.push(node.data.documentId)
-    })
-
-    handleReorder(allRowIds)
+    // Use the new merchant-based reordering
+    void reorderByBucket(event.api)
   }, [])
 
   const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
@@ -453,23 +573,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     const selectedIds = selectedNodes.map(node => node.data.documentId)
     setSelectedRows(selectedIds)
   }, [])
-
-  const handleReorder = async (documentIds: string[]) => {
-    try {
-      await couponsAdapter.reorder(documentIds)
-      onCouponsChange()
-      toast({
-        title: 'Order updated',
-        description: 'Coupon priorities have been updated',
-      })
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Reorder failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      })
-    }
-  }
 
   const handleDelete = async (documentId: string) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return
@@ -639,11 +742,13 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     <div className="flex flex-col h-full">
       {/* Enhanced Filters with Saved Views */}
       <div className="flex flex-col gap-4 p-4 border-b bg-card">
-        {/* Saved Views */}
-        <SavedViewsManager 
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-        />
+                 {/* Saved Views */}
+         <SavedViewsManager 
+           filters={filters}
+           onFiltersChange={onFiltersChange}
+           visibleColumns={visibleColumns}
+           onVisibleColumnsChange={setVisibleColumns}
+         />
         
         {/* Traditional Filters */}
         <div className="flex gap-4">
@@ -743,6 +848,19 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
               )}
             </div>
           )}
+          
+          {/* Reorder Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const api = (window as any).gridApi;
+              if (api) { void reorderByBucket(api); }
+            }}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Recompute Priorities
+          </Button>
         </div>
       </div>
 
@@ -807,16 +925,23 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           onCellValueChanged={onCellValueChanged}
           onRowDragEnd={onRowDragEnd}
           onSelectionChanged={onSelectionChanged}
+          onGridReady={(p) => { (window as any).gridApi = p.api; }}
 
           rowSelection="multiple"
           suppressRowClickSelection={false}
           rowDragManaged
+          suppressMoveWhenRowDragging
           animateRows
           defaultColDef={{
             sortable: true,
             filter: true,
             resizable: true,
-            cellStyle: { lineHeight: '1.4' }
+            cellStyle: { 
+              lineHeight: '1.4',
+              display: 'flex',
+              alignItems: 'center',
+              height: '100%'
+            }
           }}
           enterNavigatesVertically={true}
           enterNavigatesVerticallyAfterEdit={true}
