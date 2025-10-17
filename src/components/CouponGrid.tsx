@@ -250,11 +250,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       // Remove fields that shouldn't be copied for a new coupon
       const { 
         documentId, 
-        coupon_uid, 
+        coupon_uid, // Don't copy UID - let lifecycle generate new one
         createdAt, 
         updatedAt, 
         merchant, 
         id, // Remove the id field that's causing the validation error
+        priority, // Don't copy priority - let lifecycle assign based on merchant
         ...couponData 
       } = coupon
       
@@ -262,7 +263,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         ...couponData,
         merchant: merchant?.documentId,
         coupon_title: `${coupon.coupon_title} (Copy)`,
-        priority: Math.max(...rowData.map(r => r.priority)) + 1
+        // Don't set priority - let CMS lifecycle handle it based on merchant
       })
       
       onCouponsChange()
@@ -277,7 +278,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         description: error instanceof Error ? error.message : 'Unknown error',
       })
     }
-  }, [rowData, onCouponsChange, toast])
+  }, [onCouponsChange, toast])
 
   const handleSave = useCallback(async () => {
     if (Object.keys(pendingChanges).length === 0) return
@@ -821,7 +822,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           affiliate_link: contextMenuRowData.affiliate_link,
           description: contextMenuRowData.description,
           editor_tips: contextMenuRowData.editor_tips,
-          priority: Math.max(...rowData.map(r => r.priority)) + 1,
+          // Don't set priority - let CMS lifecycle handle it based on merchant
           starts_at: contextMenuRowData.starts_at,
           expires_at: contextMenuRowData.expires_at,
           coupon_status: contextMenuRowData.coupon_status || 'active',
@@ -845,7 +846,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       }
     }
     setContextMenuOpen(false)
-  }, [contextMenuRowData, rowData, couponsAdapter, onCouponsChange, toast])
+  }, [contextMenuRowData, couponsAdapter, onCouponsChange, toast])
 
   const handleAddNewBelow = useCallback(() => {
     if (contextMenuRowData) {
@@ -861,7 +862,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         affiliate_link: '',
         description: '',
         editor_tips: '',
-        priority: contextMenuRowData.priority + 1,
+        // Don't set priority - let CMS lifecycle handle it based on merchant
         starts_at: '',
         expires_at: '',
         coupon_status: 'active',
@@ -1023,7 +1024,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           affiliate_link: coupon.affiliate_link,
           description: coupon.description,
           editor_tips: coupon.editor_tips,
-          priority: Math.max(...rowData.map(r => r.priority)) + 1,
+          // Don't set priority - let CMS lifecycle handle it based on merchant
           starts_at: coupon.starts_at,
           expires_at: coupon.expires_at,
           coupon_status: coupon.coupon_status || 'active',
