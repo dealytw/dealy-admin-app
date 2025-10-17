@@ -542,30 +542,65 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       if (selectedDate) {
         const isoString = selectedDate.toISOString().split('T')[0] // YYYY-MM-DD format
         onValueChange(isoString)
+      } else {
+        // Clear the date
+        onValueChange('')
       }
       setOpen(false)
     }
 
+    const handleClear = () => {
+      setDate(undefined)
+      onValueChange('')
+      setOpen(false)
+    }
+
     return (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <div className="flex items-center gap-1 w-full">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex-1 justify-start text-left font-normal h-8"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, 'MMM dd, yyyy') : 'Pick a date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={handleSelect}
+              initialFocus
+            />
+            {date && (
+              <div className="p-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClear}
+                  className="w-full"
+                >
+                  <Trash2 className="mr-2 h-3 w-3" />
+                  Clear Date
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+        {date && (
           <Button
-            variant="outline"
-            className="w-full justify-start text-left font-normal h-8"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            title="Clear date"
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, 'MMM dd, yyyy') : 'Pick a date'}
+            <Trash2 className="h-3 w-3" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={handleSelect}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
+        )}
+      </div>
     )
   }
 
