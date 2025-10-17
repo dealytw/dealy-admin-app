@@ -772,6 +772,22 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     }
   }, [contextMenuOpen])
 
+  // Prevent browser context menu globally when our menu is open
+  useEffect(() => {
+    const handleGlobalContextMenu = (event: MouseEvent) => {
+      if (contextMenuOpen) {
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
+      }
+    }
+
+    if (contextMenuOpen) {
+      document.addEventListener('contextmenu', handleGlobalContextMenu, { capture: true })
+      return () => document.removeEventListener('contextmenu', handleGlobalContextMenu, { capture: true })
+    }
+  }, [contextMenuOpen])
+
   const handleCopyRowData = useCallback(() => {
     if (contextMenuRowData) {
       const textToCopy = `${contextMenuRowData.coupon_title} | ${contextMenuRowData.value} | ${contextMenuRowData.code} | ${contextMenuRowData.affiliate_link}`
@@ -1259,7 +1275,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       )}
 
       {/* Grid */}
-      <div className="flex-1 ag-theme-quartz">
+      <div 
+        className="flex-1 ag-theme-quartz"
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+        }}
+      >
         <style>{`
           .ag-theme-quartz .ag-row-drag {
             cursor: move;
@@ -1305,6 +1328,10 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            suppressContextMenu={true}
            onCellContextMenu={(event) => {
              console.log('AG Grid onCellContextMenu triggered:', event)
+             // Prevent browser context menu completely
+             event.event.preventDefault()
+             event.event.stopPropagation()
+             event.event.stopImmediatePropagation()
              // Handle custom context menu
              handleContextMenu(event.event as any, event.data)
            }}
@@ -1312,6 +1339,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
              // Prevent browser context menu on empty areas
              event.preventDefault()
              event.stopPropagation()
+             event.stopImmediatePropagation()
            }}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
