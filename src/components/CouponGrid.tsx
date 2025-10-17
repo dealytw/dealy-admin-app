@@ -758,6 +758,20 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     console.log('Context menu should now be open:', true)
   }, [])
 
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuOpen) {
+        setContextMenuOpen(false)
+      }
+    }
+
+    if (contextMenuOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [contextMenuOpen])
+
   const handleCopyRowData = useCallback(() => {
     if (contextMenuRowData) {
       const textToCopy = `${contextMenuRowData.coupon_title} | ${contextMenuRowData.value} | ${contextMenuRowData.code} | ${contextMenuRowData.affiliate_link}`
@@ -1370,48 +1384,47 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       />
 
       {/* Custom Context Menu */}
-      <ContextMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
-        <ContextMenuTrigger asChild>
-          <div 
-            style={{ 
-              position: 'fixed', 
-              left: contextMenuPosition.x, 
-              top: contextMenuPosition.y,
-              width: 1,
-              height: 1,
-              pointerEvents: 'none',
-              zIndex: 9999
-            }}
-          />
-        </ContextMenuTrigger>
-        <ContextMenuContent 
+      {contextMenuOpen && (
+        <div 
+          className="fixed bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50 min-w-[160px]"
           style={{ 
-            position: 'fixed', 
             left: contextMenuPosition.x, 
             top: contextMenuPosition.y,
-            zIndex: 10000
           }}
+          onMouseLeave={() => setContextMenuOpen(false)}
         >
-          <ContextMenuItem onClick={handleCopyRowData}>
+          <button
+            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center text-sm"
+            onClick={handleCopyRowData}
+          >
             <Copy className="mr-2 h-4 w-4" />
             Copy Row Data
-          </ContextMenuItem>
-          <ContextMenuItem onClick={handleDuplicateRow}>
+          </button>
+          <button
+            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center text-sm"
+            onClick={handleDuplicateRow}
+          >
             <Copy className="mr-2 h-4 w-4" />
             Duplicate Row
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleAddNewBelow}>
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center text-sm"
+            onClick={handleAddNewBelow}
+          >
             <Edit3 className="mr-2 h-4 w-4" />
             Add New Below
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleDeleteRow} className="text-red-600">
+          </button>
+          <div className="border-t border-gray-200 my-1"></div>
+          <button
+            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center text-sm text-red-600"
+            onClick={handleDeleteRow}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete Row
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+          </button>
+        </div>
+      )}
     </div>
   )
 }
