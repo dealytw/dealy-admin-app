@@ -92,61 +92,62 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   // Excel-like clipboard state
   const [clipboardData, setClipboardData] = useState<{ value: any; field: string } | null>(null)
   
-  // Excel-like keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle shortcuts when grid is focused and Ctrl is pressed
-      if (!event.ctrlKey) return
+  // Excel-like keyboard shortcuts - temporarily disabled to fix blank page issue
+  // useEffect(() => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     // Only handle shortcuts when grid is focused and Ctrl is pressed
+  //     if (!event.ctrlKey) return
       
-      const gridApi = gridRef.current?.api
-      if (!gridApi) return
+  //     // Check if grid is ready and has data
+  //     if (!gridRef.current?.api || !rowData || rowData.length === 0) return
       
-      const focusedCell = gridApi.getFocusedCell()
-      if (!focusedCell) return
+  //     const gridApi = gridRef.current.api
+  //     const focusedCell = gridApi.getFocusedCell()
+  //     if (!focusedCell) return
       
-      const rowNode = gridApi.getRowNode(focusedCell.rowIndex.toString())
-      if (!rowNode) return
+  //     const rowNode = gridApi.getRowNode(focusedCell.rowIndex.toString())
+  //     if (!rowNode || !rowNode.data) return
       
-      const rowData = rowNode.data as Coupon
-      const field = focusedCell.column.getColId()
+  //     const rowData = rowNode.data as Coupon
+  //     const field = focusedCell.column.getColId()
       
-      try {
-        switch (event.key.toLowerCase()) {
-          case 'c':
-            // Ctrl+C: Copy cell value
-            event.preventDefault()
-            const cellValue = rowData[field as keyof Coupon]
-            setClipboardData({ value: cellValue, field })
-            toast({
-              title: 'Cell copied',
-              description: `"${cellValue}" copied to clipboard`,
-            })
-            break
+  //     try {
+  //       switch (event.key.toLowerCase()) {
+  //         case 'c':
+  //           // Ctrl+C: Copy cell value
+  //           event.preventDefault()
+  //           const cellValue = rowData[field as keyof Coupon]
+  //           setClipboardData({ value: cellValue, field })
+  //           toast({
+  //             title: 'Cell copied',
+  //             description: `"${cellValue}" copied to clipboard`,
+  //           })
+  //           break
             
-          case 'v':
-            // Ctrl+V: Paste cell value
-            if (clipboardData && clipboardData.field === field) {
-              event.preventDefault()
-              const updates = { [field]: clipboardData.value }
-              setPendingChanges(prev => ({
-                ...prev,
-                [rowData.documentId]: { ...prev[rowData.documentId], ...updates }
-              }))
-              toast({
-                title: 'Cell pasted',
-                description: `"${clipboardData.value}" pasted`,
-              })
-            }
-            break
-        }
-      } catch (error) {
-        console.error('Keyboard shortcut error:', error)
-      }
-    }
+  //         case 'v':
+  //           // Ctrl+V: Paste cell value
+  //           if (clipboardData && clipboardData.field === field) {
+  //             event.preventDefault()
+  //             const updates = { [field]: clipboardData.value }
+  //             setPendingChanges(prev => ({
+  //               ...prev,
+  //               [rowData.documentId]: { ...prev[rowData.documentId], ...updates }
+  //             }))
+  //             toast({
+  //               title: 'Cell pasted',
+  //               description: `"${clipboardData.value}" pasted`,
+  //             })
+  //           }
+  //           break
+  //       }
+  //     } catch (error) {
+  //       console.error('Keyboard shortcut error:', error)
+  //     }
+  //   }
     
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [clipboardData, toast])
+  //   document.addEventListener('keydown', handleKeyDown)
+  //   return () => document.removeEventListener('keydown', handleKeyDown)
+  // }, [clipboardData, toast, rowData])
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
