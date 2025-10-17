@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
-import type { ColDef, GridReadyEvent, CellValueChangedEvent, RowDragEndEvent, SelectionChangedEvent } from 'ag-grid-community'
+import type { ColDef, GridReadyEvent, CellValueChangedEvent, RowDragEndEvent, SelectionChangedEvent, ICellEditorParams } from 'ag-grid-community'
 // Import AG Grid CSS for proper styling
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 
@@ -12,14 +12,19 @@ import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Badge } from './ui/badge'
 import { Checkbox } from './ui/checkbox'
+import { Calendar } from './ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { MerchantSelector } from './MerchantSelector'
+import { MarketSelector } from './MarketSelector'
 import { SavedViewsManager } from './SavedViewsManager'
 import { ValidationCell } from './ValidationBadges'
+import { RichTextRenderer } from './RichTextRenderer'
+import { RichTextCellEditor } from './RichTextCellEditor'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useToast } from '../hooks/use-toast'
-import type { Coupon, CouponFilters, Merchant } from '../domain/coupons'
-import { couponsAdapter, merchantsAdapter } from '../data/strapiCoupons'
-import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard } from 'lucide-react'
+import type { Coupon, CouponFilters, Merchant, Site } from '../domain/coupons'
+import { couponsAdapter, merchantsAdapter, sitesAdapter } from '../data/strapiCoupons'
+import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 
 // --- util: optional auth header from session (works for JWT or proxy) ---
@@ -69,10 +74,13 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [merchantSelectorOpen, setMerchantSelectorOpen] = useState(false)
+  const [marketSelectorOpen, setMarketSelectorOpen] = useState(false)
   const [selectedRowForMerchant, setSelectedRowForMerchant] = useState<string | null>(null)
+  const [selectedRowForMarket, setSelectedRowForMarket] = useState<string | null>(null)
   const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
   const [merchants, setMerchants] = useState<Merchant[]>([]) // Store all merchants for lookup
+  const [sites, setSites] = useState<Site[]>([]) // Store all sites for lookup
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -81,6 +89,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     coupon_type: true,
     affiliate_link: true,
     description: true,
+    editor_tips: true,
     priority: true,
     starts_at: true,
     expires_at: true,
@@ -182,16 +191,37 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     loadMerchants()
   }, [])
 
+  // Load sites for lookup
+  useEffect(() => {
+    const loadSites = async () => {
+      try {
+        console.log('Loading sites for lookup...')
+        const siteData = await sitesAdapter.list()
+        console.log('Loaded sites:', siteData)
+        setSites(siteData)
+      } catch (error) {
+        console.error('Failed to load sites for lookup:', error)
+      }
+    }
+    loadSites()
+  }, [])
+
   useEffect(() => {
     setRowData(coupons)
-    // Debug: log coupon data to see merchant structure
+    // Debug: log coupon data to see merchant and market structure
     console.log('Coupons loaded:', coupons.map(c => ({
       documentId: c.documentId,
       merchant: c.merchant,
+      market: c.market,
       merchant_name: c.merchant_name,
       merchant_id: c.merchant_id
     })))
   }, [coupons])
+
+  // Apply sorting by priority when data changes
+  useEffect(() => {
+    // Removed automatic sorting to show natural order
+  }, [rowData]);
 
   // Enhanced keyboard shortcuts
   const handleCopy = useCallback((coupon: Coupon) => {
@@ -202,31 +232,39 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     })
   }, [toast])
 
-  const handlePaste = useCallback(async () => {
-    if (!copiedCoupon) return
-    
+  const handleDuplicate = useCallback(async (coupon: Coupon) => {
     try {
-      const { documentId, coupon_uid, createdAt, updatedAt, merchant, ...couponData } = copiedCoupon
+      // Remove fields that shouldn't be copied for a new coupon
+      const { 
+        documentId, 
+        coupon_uid, 
+        createdAt, 
+        updatedAt, 
+        merchant, 
+        id, // Remove the id field that's causing the validation error
+        ...couponData 
+      } = coupon
+      
       const newCoupon = await couponsAdapter.create({
         ...couponData,
         merchant: merchant?.documentId,
-        coupon_title: `${copiedCoupon.coupon_title} (Copy)`,
+        coupon_title: `${coupon.coupon_title} (Copy)`,
         priority: Math.max(...rowData.map(r => r.priority)) + 1
       })
       
       onCouponsChange()
       toast({
-        title: 'Coupon pasted',
-        description: 'New coupon created below selection',
+        title: 'Coupon duplicated',
+        description: 'New coupon created successfully',
       })
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Paste failed',
+        title: 'Duplicate failed',
         description: error instanceof Error ? error.message : 'Unknown error',
       })
     }
-  }, [copiedCoupon, rowData, onCouponsChange, toast])
+  }, [rowData, onCouponsChange, toast])
 
   const handleSave = useCallback(async () => {
     if (Object.keys(pendingChanges).length === 0) return
@@ -260,7 +298,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     gridRef,
     onSave: handleSave,
     onCopy: handleCopy,
-    onPaste: handlePaste,
     copiedCoupon
   })
 
@@ -324,24 +361,131 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     )
   }
 
+  const MarketCell = ({ data }: any) => {
+    // Get market name by looking up the market ID
+    const getMarketName = () => {
+      console.log('MarketCell data:', {
+        documentId: data.documentId,
+        market: data.market,
+        sitesLoaded: sites.length
+      })
+
+      // If market is a populated relation object with name
+      if (data.market?.name) {
+        console.log('Found market name in relation:', data.market.name)
+        return data.market.name
+      }
+      // If market is just an ID (string), look it up in our sites array
+      if (data.market && typeof data.market === 'string') {
+        console.log('Looking up market ID:', data.market)
+        const foundSite = sites.find(s => s.documentId === data.market)
+        console.log('Found site:', foundSite)
+        return foundSite ? foundSite.name : data.market // Return ID if not found
+      }
+      // If market is a populated object with documentId, look it up
+      if (data.market?.documentId) {
+        const foundSite = sites.find(s => s.documentId === data.market.documentId)
+        console.log('Looking up market documentId:', data.market.documentId, 'Found:', foundSite)
+        return foundSite ? foundSite.name : data.market.name || data.market.documentId
+      }
+      // Fallback
+      const fallback = 'Select market...'
+      console.log('Using fallback:', fallback)
+      return fallback
+    }
+    
+    return (
+      <button
+        onClick={() => {
+          setSelectedRowForMarket(data.documentId)
+          setMarketSelectorOpen(true)
+        }}
+        className="text-left hover:underline"
+      >
+        {getMarketName()}
+      </button>
+    )
+  }
+
   const DeleteCell = ({ data }: any) => (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleDelete(data.documentId)}
-      className="h-8 w-8 p-0 text-destructive"
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleDuplicate(data)}
+        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+        title="Duplicate coupon"
+      >
+        <Copy className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleDelete(data.documentId)}
+        className="h-8 w-8 p-0 text-destructive"
+        title="Delete coupon"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
   )
 
   const PriorityCell = ({ value }: { value: number }) => (
-    <div className="flex items-center justify-center h-full min-h-[40px]">
+    <div className="flex items-center justify-center h-full min-h-[40px] gap-2">
+      {/* Drag handle - visual only, AG Grid handles the drag */}
+      <div 
+        className="cursor-move text-gray-400 hover:text-gray-600 select-none"
+        style={{ 
+          width: '12px', 
+          height: '12px',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Ccircle cx='2' cy='2' r='1' fill='%236b7280'/%3E%3Ccircle cx='6' cy='2' r='1' fill='%236b7280'/%3E%3Ccircle cx='10' cy='2' r='1' fill='%236b7280'/%3E%3Ccircle cx='2' cy='6' r='1' fill='%236b7280'/%3E%3Ccircle cx='6' cy='6' r='1' fill='%236b7280'/%3E%3Ccircle cx='10' cy='6' r='1' fill='%236b7280'/%3E%3Ccircle cx='2' cy='10' r='1' fill='%236b7280'/%3E%3Ccircle cx='6' cy='10' r='1' fill='%236b7280'/%3E%3Ccircle cx='10' cy='10' r='1' fill='%236b7280'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center'
+        }}
+      />
+      {/* Priority badge */}
       <Badge variant="secondary" className="font-mono text-xs">
         {value || 0}
       </Badge>
     </div>
-  )
+  );
+
+  // Custom Date Picker Cell Editor
+  const DatePickerCellEditor = ({ value, onValueChange }: { value: string, onValueChange: (value: string) => void }) => {
+    const [date, setDate] = useState<Date | undefined>(value ? new Date(value) : undefined)
+    const [open, setOpen] = useState(false)
+
+    const handleSelect = (selectedDate: Date | undefined) => {
+      setDate(selectedDate)
+      if (selectedDate) {
+        const isoString = selectedDate.toISOString().split('T')[0] // YYYY-MM-DD format
+        onValueChange(isoString)
+      }
+      setOpen(false)
+    }
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left font-normal h-8"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date ? format(date, 'MMM dd, yyyy') : 'Pick a date'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={handleSelect}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    )
+  }
 
   const columnDefs: ColDef<Coupon>[] = [
     {
@@ -357,18 +501,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'priority',
       headerName: '#',
-      width: 100,
+      width: 120,
       rowDrag: true,
       editable: true,
       type: 'numericColumn',
-      cellRenderer: PriorityCell,
       cellStyle: { 
+        textAlign: 'center',
         fontWeight: 'bold',
-        backgroundColor: '#f3f4f6',
-        textAlign: 'center'
-      },
-      valueFormatter: (params) => {
-        return params.value ? params.value.toString() : '0'
+        padding: '8px 4px'
       }
     },
     { 
@@ -405,11 +545,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
        field: 'market', 
        headerName: 'Market',
        width: 100,
-       editable: true,
-       cellEditor: 'agSelectCellEditor',
-       cellEditorParams: {
-         values: ['HK', 'TW', 'JP', 'KR', 'SG', 'MY']
-       }
+       editable: false,
+       cellRenderer: MarketCell
      },
     { 
       field: 'coupon_title', 
@@ -460,7 +597,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       editable: true,
       wrapText: true,
       autoHeight: true,
-      cellEditor: 'agTextAreaCellEditor'
+      cellRenderer: ({ value }: any) => <RichTextRenderer value={value} />,
+      cellEditor: RichTextCellEditor,
+      cellEditorParams: {
+        suppressKeyboardEvent: () => true // Prevent default keyboard handling
+      }
     },
     { 
       field: 'editor_tips', 
@@ -469,24 +610,42 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       editable: true,
       wrapText: true,
       autoHeight: true,
-      cellEditor: 'agTextAreaCellEditor'
+      cellRenderer: ({ value }: any) => <RichTextRenderer value={value} />,
+      cellEditor: RichTextCellEditor,
+      cellEditorParams: {
+        suppressKeyboardEvent: () => true // Prevent default keyboard handling
+      }
     },
-    { 
-      field: 'starts_at', 
-      headerName: 'Starts',
-      width: 120,
-      editable: true,
-      valueFormatter: (params) => 
-        params.value ? format(new Date(params.value), 'MMM dd, yyyy') : ''
-    },
-    { 
-      field: 'expires_at', 
-      headerName: 'Expires',
-      width: 120,
-      editable: true,
-      valueFormatter: (params) => 
-        params.value ? format(new Date(params.value), 'MMM dd, yyyy') : ''
-    },
+         { 
+       field: 'starts_at', 
+       headerName: 'Starts',
+       width: 120,
+       editable: true,
+       cellRenderer: ({ value }: any) => (
+         <div className="flex items-center gap-2">
+           <span>{value ? format(new Date(value), 'MMM dd, yyyy') : ''}</span>
+           <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+         </div>
+       ),
+       cellEditor: DatePickerCellEditor,
+       valueFormatter: (params) => 
+         params.value ? format(new Date(params.value), 'MMM dd, yyyy') : ''
+     },
+     { 
+       field: 'expires_at', 
+       headerName: 'Expires',
+       width: 120,
+       editable: true,
+       cellRenderer: ({ value }: any) => (
+         <div className="flex items-center gap-2">
+           <span>{value ? format(new Date(value), 'MMM dd, yyyy') : ''}</span>
+           <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+         </div>
+       ),
+       cellEditor: DatePickerCellEditor,
+       valueFormatter: (params) => 
+         params.value ? format(new Date(params.value), 'MMM dd, yyyy') : ''
+     },
          {
        field: 'coupon_status',
        headerName: 'Status',
@@ -619,6 +778,32 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     ))
   }
 
+  const handleMarketSelect = async (site: Site) => {
+    if (!selectedRowForMarket) return
+
+    setPendingChanges(prev => ({
+      ...prev,
+      [selectedRowForMarket]: {
+        ...prev[selectedRowForMarket],
+        market: site.documentId
+      }
+    }))
+
+    // Update the row data immediately for UI with the full site object
+    setRowData(prev => prev.map(row => 
+      row.documentId === selectedRowForMarket 
+        ? { 
+            ...row, 
+            market: {
+              documentId: site.documentId,
+              name: site.name,
+              key: site.key
+            }
+          }
+        : row
+    ))
+  }
+
   const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return
     if (!confirm(`Are you sure you want to delete ${selectedRows.length} coupons?`)) return
@@ -647,7 +832,16 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     try {
       const selectedCoupons = rowData.filter(row => selectedRows.includes(row.documentId))
       const createPromises = selectedCoupons.map(async coupon => {
-        const { documentId, coupon_uid, createdAt, updatedAt, merchant, ...couponData } = coupon
+        // Remove fields that shouldn't be copied for a new coupon
+        const { 
+          documentId, 
+          coupon_uid, 
+          createdAt, 
+          updatedAt, 
+          merchant, 
+          id, // Remove the id field that's causing the validation error
+          ...couponData 
+        } = coupon
         return couponsAdapter.create({
           ...couponData,
           merchant: merchant?.documentId,
@@ -882,7 +1076,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         )}
         
         <div className="text-sm text-muted-foreground">
-          Ctrl/Cmd+S to save • Enter to edit • Ctrl/Cmd+C/V to copy/paste
+          Ctrl/Cmd+S to save • Enter to edit
         </div>
       </div>
 
@@ -917,35 +1111,78 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
       {/* Grid */}
       <div className="flex-1 ag-theme-quartz">
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={filteredColumnDefs}
-          getRowId={(params) => params.data.documentId}
-          onCellValueChanged={onCellValueChanged}
-          onRowDragEnd={onRowDragEnd}
-          onSelectionChanged={onSelectionChanged}
-          onGridReady={(p) => { (window as any).gridApi = p.api; }}
-
-          rowSelection="multiple"
-          suppressRowClickSelection={false}
-          rowDragManaged
-          suppressMoveWhenRowDragging
-          animateRows
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-            cellStyle: { 
-              lineHeight: '1.4',
-              display: 'flex',
-              alignItems: 'center',
-              height: '100%'
-            }
+        <style>{`
+          .ag-theme-quartz .ag-row-drag {
+            cursor: move;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+          }
+          .ag-theme-quartz .ag-row-drag-handle {
+            display: none !important;
+          }
+          .ag-theme-quartz .ag-cell[col-id="priority"] {
+            text-align: center !important;
+            padding: 8px 4px !important;
+            font-weight: bold !important;
+          }
+          .ag-theme-quartz .ag-cell[col-id="priority"] .ag-row-drag {
+            justify-content: center !important;
+          }
+        `}</style>
+                 <AgGridReact
+           ref={gridRef}
+           rowData={rowData}
+           columnDefs={filteredColumnDefs}
+           components={{
+             RichTextCellEditor: RichTextCellEditor
+           }}
+           getRowId={(params) => params.data.documentId}
+           onCellValueChanged={onCellValueChanged}
+           onRowDragEnd={onRowDragEnd}
+           onSelectionChanged={onSelectionChanged}
+          onGridReady={(p) => { 
+            (window as any).gridApi = p.api;
+            // No automatic sorting - show natural order
           }}
-          enterNavigatesVertically={true}
-          enterNavigatesVerticallyAfterEdit={true}
-        />
+
+           rowSelection="multiple"
+           suppressRowClickSelection={false}
+           rowDragManaged
+           rowDragText={(params) => `Priority ${params.rowNode.data.priority}`}
+           suppressMoveWhenRowDragging
+           animateRows
+           
+                       // Disable AG Grid's copy/paste functionality
+            suppressCopyRowsToClipboard={true}
+            suppressCopySingleCellRanges={true}
+            suppressPasteSingleCellRanges={true}
+           
+           defaultColDef={{
+             sortable: true,
+             filter: true,
+             resizable: true,
+             suppressKeyboardEvent: (params) => {
+               // Disable AG Grid's copy/paste handling
+               const key = params.event.key.toLowerCase()
+               if ((params.event.ctrlKey || params.event.metaKey) && (key === 'c' || key === 'v')) {
+                 return false // Let browser handle it
+               }
+               return true
+             },
+             cellStyle: { 
+               lineHeight: '1.4',
+               display: 'flex',
+               alignItems: 'center',
+               height: '100%',
+               minHeight: '40px'
+             }
+           }}
+           enterNavigatesVertically={true}
+           enterNavigatesVerticallyAfterEdit={true}
+         />
       </div>
 
       <MerchantSelector
@@ -958,6 +1195,20 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         currentMerchant={
           selectedRowForMerchant
             ? rowData.find(r => r.documentId === selectedRowForMerchant)?.merchant
+            : undefined
+        }
+      />
+
+      <MarketSelector
+        isOpen={marketSelectorOpen}
+        onClose={() => {
+          setMarketSelectorOpen(false)
+          setSelectedRowForMarket(null)
+        }}
+        onSelect={handleMarketSelect}
+        currentSite={
+          selectedRowForMarket
+            ? rowData.find(r => r.documentId === selectedRowForMarket)?.market
             : undefined
         }
       />

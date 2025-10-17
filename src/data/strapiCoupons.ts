@@ -7,6 +7,8 @@ import type {
   CouponsPort,
   Merchant,
   MerchantsPort,
+  Site,
+  SitesPort,
 } from '../domain/coupons'
 import { sfetch } from '../api/strapiClient'
 
@@ -15,7 +17,8 @@ class StrapiCouponsAdapter implements CouponsPort {
     const params = new URLSearchParams({
       'sort': 'priority:asc',
       'pagination[pageSize]': '500',
-      'populate': 'merchant', // Try simple populate without field specification
+      'populate[0]': 'merchant', // Populate merchant relation
+      'populate[1]': 'market',   // Populate market relation
     })
 
     if (filters?.q) {
@@ -41,6 +44,7 @@ class StrapiCouponsAdapter implements CouponsPort {
     if (response.data && response.data.length > 0) {
       console.log('First coupon structure:', response.data[0])
       console.log('First coupon merchant field:', response.data[0].merchant)
+      console.log('First coupon market field:', response.data[0].market)
     }
     
     return response.data || []
@@ -55,7 +59,8 @@ class StrapiCouponsAdapter implements CouponsPort {
       editor_tips: input.editor_tips || '',
       value: input.value || '',
       code: input.code || '',
-      market: input.market || 'HK',
+      // Don't set market if not provided - let Strapi handle default
+      ...(input.market && { market: input.market }),
       coupon_type: input.coupon_type || 'promo_code',
       coupon_status: 'active' as const,
     }
@@ -148,5 +153,46 @@ class StrapiMerchantsAdapter implements MerchantsPort {
   }
 }
 
+class StrapiSitesAdapter implements SitesPort {
+  async list(): Promise<Site[]> {
+    try {
+      console.log('Fetching sites from Strapi...')
+      
+      const response = await sfetch('/api/sites?pagination[pageSize]=500&sort=name:asc')
+      console.log('Sites response:', response)
+      
+      // Log the first site to see the structure
+      if (response.data && response.data.length > 0) {
+        console.log('First site structure:', response.data[0])
+        console.log('Available site fields:', Object.keys(response.data[0]))
+      }
+      
+      // Map the Strapi field names to our domain model
+      const mappedSites = (response.data || []).map((site: any) => ({
+        documentId: site.documentId,
+        name: site.name,
+        key: site.key
+      }))
+      
+      console.log('Mapped sites:', mappedSites)
+      return mappedSites
+    } catch (error) {
+      console.error('Error fetching sites:', error)
+      
+      // Return mock sites as fallback
+      console.log('Using mock sites as fallback')
+      return [
+        { documentId: 'TW', name: 'Taiwan', key: 'TW' },
+        { documentId: 'HK', name: 'Hong Kong', key: 'HK' },
+        { documentId: 'JP', name: 'Japan', key: 'JP' },
+        { documentId: 'KR', name: 'Korea', key: 'KR' },
+        { documentId: 'SG', name: 'Singapore', key: 'SG' },
+        { documentId: 'MY', name: 'Malaysia', key: 'MY' }
+      ]
+    }
+  }
+}
+
 export const couponsAdapter = new StrapiCouponsAdapter()
 export const merchantsAdapter = new StrapiMerchantsAdapter()
+export const sitesAdapter = new StrapiSitesAdapter()

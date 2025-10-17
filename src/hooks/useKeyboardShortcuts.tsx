@@ -6,7 +6,6 @@ interface UseKeyboardShortcutsProps {
   gridRef: React.RefObject<any>
   onSave: () => void
   onCopy: (coupon: Coupon) => void
-  onPaste: () => void
   copiedCoupon: Coupon | null
 }
 
@@ -14,7 +13,6 @@ export function useKeyboardShortcuts({
   gridRef,
   onSave,
   onCopy,
-  onPaste,
   copiedCoupon
 }: UseKeyboardShortcutsProps) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -28,25 +26,15 @@ export function useKeyboardShortcuts({
       return
     }
 
-    // Copy shortcut (Ctrl/Cmd + C)
-    if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
-      const selectedNodes = gridApi.getSelectedNodes()
-      if (selectedNodes.length === 1) {
-        e.preventDefault()
-        onCopy(selectedNodes[0].data)
-        return
-      }
-    }
-
-    // Paste shortcut (Ctrl/Cmd + V)
-    if ((e.metaKey || e.ctrlKey) && e.key === 'v' && copiedCoupon) {
-      const selectedNodes = gridApi.getSelectedNodes()
-      if (selectedNodes.length === 1) {
-        e.preventDefault()
-        onPaste()
-        return
-      }
-    }
+    // Copy shortcut (Ctrl/Cmd + C) - DISABLED
+    // if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+    //   const selectedNodes = gridApi.getSelectedNodes()
+    //   if (selectedNodes.length === 1) {
+    //     e.preventDefault()
+    //     onCopy(selectedNodes[0].data)
+    //     return
+    //   }
+    // }
 
     // Enter to start editing
     if (e.key === 'Enter') {
@@ -76,7 +64,7 @@ export function useKeyboardShortcuts({
         return
       }
     }
-  }, [gridRef, onSave, onCopy, onPaste, copiedCoupon])
+  }, [gridRef, onSave, onCopy])
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown)

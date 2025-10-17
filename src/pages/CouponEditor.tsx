@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../components/ui/button'
 import { CouponGrid } from '../components/CouponGrid'
+import { RichTextRenderer } from '../components/RichTextRenderer'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../hooks/use-toast'
 import { couponsAdapter } from '../data/strapiCoupons'

@@ -5,11 +5,17 @@ export interface Merchant {
   slug?: string
 }
 
+export interface Site {
+  documentId: string
+  name: string
+  key?: string
+}
+
 export interface Coupon {
   documentId: string
   coupon_uid: string
   merchant?: Merchant
-  market?: string
+  market?: Site
   coupon_title: string
   value?: string
   code?: string
@@ -81,4 +87,8 @@ export interface CouponsPort {
 
 export interface MerchantsPort {
   list(): Promise<Merchant[]>
+}
+
+export interface SitesPort {
+  list(): Promise<Site[]>
 }
