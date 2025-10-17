@@ -748,12 +748,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
   // Custom context menu handlers
   const handleContextMenu = useCallback((event: React.MouseEvent, rowData: Coupon) => {
+    console.log('handleContextMenu called with:', { event, rowData })
     event.preventDefault()
     event.stopPropagation()
     
     setContextMenuPosition({ x: event.clientX, y: event.clientY })
     setContextMenuRowData(rowData)
     setContextMenuOpen(true)
+    console.log('Context menu should now be open:', true)
   }, [])
 
   const handleCopyRowData = useCallback(() => {
@@ -1288,6 +1290,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onSelectionChanged={onSelectionChanged}
            suppressContextMenu={true}
            onCellContextMenu={(event) => {
+             console.log('AG Grid onCellContextMenu triggered:', event)
              // Handle custom context menu
              handleContextMenu(event.event as any, event.data)
            }}
