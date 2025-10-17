@@ -1252,7 +1252,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       )}
 
       {/* Grid */}
-      <div className="flex-1 ag-theme-quartz">
+      <div 
+        className="flex-1 ag-theme-quartz"
+        onContextMenu={(e) => {
+          // Prevent browser context menu on the entire grid container
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+      >
         <style>{`
           .ag-theme-quartz .ag-row-drag {
             cursor: move;
@@ -1301,6 +1308,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onCellContextMenu={(event) => {
              // Prevent the default browser context menu
              event.event.preventDefault()
+             event.event.stopPropagation()
+           }}
+           onBodyContextMenu={(event) => {
+             // Also prevent context menu on the grid body
+             event.preventDefault()
+             event.stopPropagation()
            }}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
