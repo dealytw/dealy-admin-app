@@ -95,7 +95,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   // Excel-like keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle shortcuts when grid is focused
+      // Only handle shortcuts when grid is focused and Ctrl is pressed
       if (!event.ctrlKey) return
       
       const gridApi = gridRef.current?.api
@@ -110,33 +110,37 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       const rowData = rowNode.data as Coupon
       const field = focusedCell.column.getColId()
       
-      switch (event.key.toLowerCase()) {
-        case 'c':
-          // Ctrl+C: Copy cell value
-          event.preventDefault()
-          const cellValue = rowData[field as keyof Coupon]
-          setClipboardData({ value: cellValue, field })
-          toast({
-            title: 'Cell copied',
-            description: `"${cellValue}" copied to clipboard`,
-          })
-          break
-          
-        case 'v':
-          // Ctrl+V: Paste cell value
-          if (clipboardData && clipboardData.field === field) {
+      try {
+        switch (event.key.toLowerCase()) {
+          case 'c':
+            // Ctrl+C: Copy cell value
             event.preventDefault()
-            const updates = { [field]: clipboardData.value }
-            setPendingChanges(prev => ({
-              ...prev,
-              [rowData.documentId]: { ...prev[rowData.documentId], ...updates }
-            }))
+            const cellValue = rowData[field as keyof Coupon]
+            setClipboardData({ value: cellValue, field })
             toast({
-              title: 'Cell pasted',
-              description: `"${clipboardData.value}" pasted`,
+              title: 'Cell copied',
+              description: `"${cellValue}" copied to clipboard`,
             })
-          }
-          break
+            break
+            
+          case 'v':
+            // Ctrl+V: Paste cell value
+            if (clipboardData && clipboardData.field === field) {
+              event.preventDefault()
+              const updates = { [field]: clipboardData.value }
+              setPendingChanges(prev => ({
+                ...prev,
+                [rowData.documentId]: { ...prev[rowData.documentId], ...updates }
+              }))
+              toast({
+                title: 'Cell pasted',
+                description: `"${clipboardData.value}" pasted`,
+              })
+            }
+            break
+        }
+      } catch (error) {
+        console.error('Keyboard shortcut error:', error)
       }
     }
     
