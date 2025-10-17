@@ -744,6 +744,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
   // Context menu handler
   const getContextMenuItems = useCallback((params: any) => {
+    console.log('getContextMenuItems called with params:', params)
     const { node, column, value } = params
     const isRowSelected = node?.isSelected()
     
@@ -1252,14 +1253,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       )}
 
       {/* Grid */}
-      <div 
-        className="flex-1 ag-theme-quartz"
-        onContextMenu={(e) => {
-          // Prevent browser context menu on the entire grid container
-          e.preventDefault()
-          e.stopPropagation()
-        }}
-      >
+      <div className="flex-1 ag-theme-quartz">
         <style>{`
           .ag-theme-quartz .ag-row-drag {
             cursor: move;
@@ -1306,12 +1300,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            getContextMenuItems={getContextMenuItems}
            suppressContextMenu={false}
            onCellContextMenu={(event) => {
-             // Prevent the default browser context menu
-             event.event.preventDefault()
-             event.event.stopPropagation()
+             // Only prevent default if we're not showing AG Grid context menu
+             // Let AG Grid handle the context menu first
+             console.log('Cell context menu event:', event)
            }}
            onBodyContextMenu={(event) => {
-             // Also prevent context menu on the grid body
+             // Prevent browser context menu on empty areas
              event.preventDefault()
              event.stopPropagation()
            }}
