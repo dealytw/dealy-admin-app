@@ -1273,6 +1273,16 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           .ag-theme-quartz .ag-cell[col-id="priority"] .ag-row-drag {
             justify-content: center !important;
           }
+          .ag-theme-quartz .ag-context-menu {
+            z-index: 1000 !important;
+          }
+          .ag-theme-quartz .ag-context-menu .ag-menu-option {
+            padding: 8px 16px !important;
+            cursor: pointer !important;
+          }
+          .ag-theme-quartz .ag-context-menu .ag-menu-option:hover {
+            background-color: #f3f4f6 !important;
+          }
         `}</style>
                  <AgGridReact
            ref={gridRef}
@@ -1287,6 +1297,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onSelectionChanged={onSelectionChanged}
            enableContextMenu={true}
            getContextMenuItems={getContextMenuItems}
+           suppressContextMenu={false}
+           onCellContextMenu={(event) => {
+             // Prevent the default browser context menu
+             event.event.preventDefault()
+           }}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
             // No automatic sorting - show natural order
