@@ -284,17 +284,25 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
     setIsSaving(true)
     try {
+      // Separate new rows from updates
+      const newRows = rowData.filter(row => row.documentId.startsWith('temp_'))
       const updatePromises = Object.entries(pendingChanges).map(([documentId, changes]) =>
         couponsAdapter.update(documentId, changes)
       )
       
-      await Promise.all(updatePromises)
+      // Create new rows
+      const createPromises = newRows.map(row => {
+        const { documentId: tempId, isNew, ...couponData } = row
+        return couponsAdapter.create(couponData)
+      })
+      
+      await Promise.all([...updatePromises, ...createPromises])
       setPendingChanges({})
       onCouponsChange()
       
       toast({
         title: 'Changes saved',
-        description: `Updated ${Object.keys(pendingChanges).length} coupons`,
+        description: `Updated ${Object.keys(pendingChanges).length} coupons and created ${newRows.length} new coupons`,
       })
     } catch (error) {
       toast({
@@ -305,7 +313,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     } finally {
       setIsSaving(false)
     }
-  }, [pendingChanges, onCouponsChange, toast])
+  }, [pendingChanges, rowData, onCouponsChange, toast])
 
   useKeyboardShortcuts({
     gridRef,
@@ -843,6 +851,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     if (contextMenuRowData) {
       const rowIndex = rowData.findIndex(row => row.documentId === contextMenuRowData.documentId)
       const newCoupon = {
+        documentId: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary ID
         coupon_title: 'New Coupon',
         merchant: contextMenuRowData.merchant?.documentId,
         market: contextMenuRowData.market?.documentId,
@@ -858,7 +867,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         coupon_status: 'active',
         user_count: 0,
         display_count: 0,
-        site: contextMenuRowData.site
+        site: contextMenuRowData.site,
+        isNew: true // Mark as new row for saving logic
       }
       
       const newRowData = [...rowData]
@@ -876,12 +886,22 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const handleDeleteRow = useCallback(async () => {
     if (contextMenuRowData && confirm('Are you sure you want to delete this coupon?')) {
       try {
-        await couponsAdapter.remove(contextMenuRowData.documentId)
-        onCouponsChange()
-        toast({
-          title: 'Coupon deleted',
-          description: 'Coupon has been removed',
-        })
+        if (contextMenuRowData.documentId.startsWith('temp_')) {
+          // For temporary rows, just remove from local state
+          setRowData(prev => prev.filter(row => row.documentId !== contextMenuRowData.documentId))
+          toast({
+            title: 'Row removed',
+            description: 'Unsaved row has been removed',
+          })
+        } else {
+          // For saved rows, delete from database
+          await couponsAdapter.remove(contextMenuRowData.documentId)
+          onCouponsChange()
+          toast({
+            title: 'Coupon deleted',
+            description: 'Coupon has been removed',
+          })
+        }
       } catch (error) {
         toast({
           variant: 'destructive',
