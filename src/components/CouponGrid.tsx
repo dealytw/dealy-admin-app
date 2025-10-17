@@ -27,6 +27,9 @@ import { couponsAdapter, merchantsAdapter, sitesAdapter } from '../data/strapiCo
 import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 
+// API Token for Strapi Cloud authentication (same as strapiClient.ts)
+const API_TOKEN = '78691c3d235968dc74694b86e2806cf5b982f373a89feae13b2195c740f58829144a8f0ac34f3652fcdf4d28a2eb8c1da457b7c53e70a9eb7b4602a0460aab4a70202e093a2c5a8c29ed8e02b686c8e437c7df758c75bfee6cae7db659c1bbc2472f54b82e476fd492721cefac6fc4c3d8125363a0ff90c5b534050ac5f4bc3e';
+
 // --- util: optional auth header from session (works for JWT or proxy) ---
 function authHeaders() {
   try {
@@ -136,7 +139,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
              jobs.push(() => fetch(`${STRAPI_BASE}/api/coupons/${documentId}`, {
                method: 'PUT',
-               headers: { 'Content-Type': 'application/json', ...authHeaders() },
+               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_TOKEN}` },
                body: JSON.stringify({ data: { priority: desired } }), // v5 requires {data}
                cache: 'no-store',
              }).then(r => {
@@ -739,6 +742,134 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     setSelectedRows(selectedIds)
   }, [])
 
+  // Context menu handler
+  const getContextMenuItems = useCallback((params: any) => {
+    const { node, column, value } = params
+    const isRowSelected = node?.isSelected()
+    
+    return [
+      {
+        name: 'Copy Row Data',
+        icon: '<span class="ag-icon ag-icon-copy"></span>',
+        action: () => {
+          if (node?.data) {
+            const rowData = node.data
+            const textToCopy = `${rowData.coupon_title} | ${rowData.value} | ${rowData.code} | ${rowData.affiliate_link}`
+            navigator.clipboard.writeText(textToCopy)
+            toast({
+              title: 'Copied to clipboard',
+              description: 'Row data has been copied',
+            })
+          }
+        }
+      },
+      {
+        name: 'Duplicate Row',
+        icon: '<span class="ag-icon ag-icon-copy"></span>',
+        action: async () => {
+          if (node?.data) {
+            try {
+              const coupon = node.data
+              const couponData = {
+                coupon_title: `${coupon.coupon_title} (Copy)`,
+                merchant: coupon.merchant?.documentId,
+                market: coupon.market?.documentId,
+                value: coupon.value,
+                code: coupon.code,
+                coupon_type: coupon.coupon_type,
+                affiliate_link: coupon.affiliate_link,
+                description: coupon.description,
+                editor_tips: coupon.editor_tips,
+                priority: Math.max(...rowData.map(r => r.priority)) + 1,
+                starts_at: coupon.starts_at,
+                expires_at: coupon.expires_at,
+                coupon_status: coupon.coupon_status || 'active',
+                user_count: coupon.user_count,
+                display_count: coupon.display_count,
+                site: coupon.site
+              }
+              
+              await couponsAdapter.create(couponData)
+              onCouponsChange()
+              toast({
+                title: 'Coupon duplicated',
+                description: 'New coupon created successfully',
+              })
+            } catch (error) {
+              toast({
+                variant: 'destructive',
+                title: 'Duplicate failed',
+                description: error instanceof Error ? error.message : 'Unknown error',
+              })
+            }
+          }
+        }
+      },
+      'separator',
+      {
+        name: 'Add New Below',
+        icon: '<span class="ag-icon ag-icon-plus"></span>',
+        action: () => {
+          if (node?.data) {
+            const rowIndex = node.rowIndex
+            // Add a new empty row below the current one
+            const newCoupon = {
+              coupon_title: 'New Coupon',
+              merchant: node.data.merchant?.documentId,
+              market: node.data.market?.documentId,
+              value: '',
+              code: '',
+              coupon_type: 'promo_code',
+              affiliate_link: '',
+              description: '',
+              editor_tips: '',
+              priority: node.data.priority + 1,
+              starts_at: '',
+              expires_at: '',
+              coupon_status: 'active',
+              user_count: 0,
+              display_count: 0,
+              site: node.data.site
+            }
+            
+            // Insert the new row in the grid
+            const newRowData = [...rowData]
+            newRowData.splice(rowIndex + 1, 0, newCoupon)
+            setRowData(newRowData)
+            
+            toast({
+              title: 'New row added',
+              description: 'New coupon row inserted below',
+            })
+          }
+        }
+      },
+      'separator',
+      {
+        name: 'Delete Row',
+        icon: '<span class="ag-icon ag-icon-trash"></span>',
+        action: async () => {
+          if (node?.data && confirm('Are you sure you want to delete this coupon?')) {
+            try {
+              await couponsAdapter.remove(node.data.documentId)
+              onCouponsChange()
+              toast({
+                title: 'Coupon deleted',
+                description: 'Coupon has been removed',
+              })
+            } catch (error) {
+              toast({
+                variant: 'destructive',
+                title: 'Delete failed',
+                description: error instanceof Error ? error.message : 'Unknown error',
+              })
+            }
+          }
+        }
+      }
+    ]
+  }, [rowData, couponsAdapter, onCouponsChange, toast])
+
   const handleDelete = async (documentId: string) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return
 
@@ -838,22 +969,27 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     try {
       const selectedCoupons = rowData.filter(row => selectedRows.includes(row.documentId))
       const createPromises = selectedCoupons.map(async coupon => {
-        // Remove fields that shouldn't be copied for a new coupon
-        const { 
-          documentId, 
-          coupon_uid, 
-          createdAt, 
-          updatedAt, 
-          merchant, 
-          id, // Remove the id field that's causing the validation error
-          ...couponData 
-        } = coupon
-        return couponsAdapter.create({
-          ...couponData,
-          merchant: merchant?.documentId,
+        // Only include fields that are valid for creating a new coupon
+        const couponData = {
           coupon_title: `${coupon.coupon_title} (Copy)`,
-          priority: Math.max(...rowData.map(r => r.priority)) + 1
-        })
+          merchant: coupon.merchant?.documentId,
+          market: coupon.market?.documentId,
+          value: coupon.value,
+          code: coupon.code,
+          coupon_type: coupon.coupon_type,
+          affiliate_link: coupon.affiliate_link,
+          description: coupon.description,
+          editor_tips: coupon.editor_tips,
+          priority: Math.max(...rowData.map(r => r.priority)) + 1,
+          starts_at: coupon.starts_at,
+          expires_at: coupon.expires_at,
+          coupon_status: coupon.coupon_status || 'active',
+          user_count: coupon.user_count,
+          display_count: coupon.display_count,
+          site: coupon.site
+        }
+        
+        return couponsAdapter.create(couponData)
       })
       
       await Promise.all(createPromises)
@@ -1149,6 +1285,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onCellValueChanged={onCellValueChanged}
            onRowDragEnd={onRowDragEnd}
            onSelectionChanged={onSelectionChanged}
+           enableContextMenu={true}
+           getContextMenuItems={getContextMenuItems}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
             // No automatic sorting - show natural order
