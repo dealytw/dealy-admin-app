@@ -106,8 +106,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   // --- core reorder function ---
   const STRAPI_BASE = import.meta.env.VITE_STRAPI_URL?.replace(/\/$/, '');
 
-  async function reorderByBucket(api: any) {
+  const reorderByBucket = useCallback(async (api: any) => {
     try {
+      console.log('Starting reorderByBucket...');
       // 1) group visible/sorted nodes by bucket
       const buckets = new Map<string, any[]>();
       api.forEachNodeAfterFilterAndSort((n: any) => {
@@ -115,6 +116,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         if (!buckets.has(k)) buckets.set(k, []);
         buckets.get(k)!.push(n.data);
       });
+      
+      console.log('Buckets created:', buckets.size);
 
       // 2) build update jobs; top row gets largest number
       const jobs: Array<() => Promise<any>> = [];
@@ -124,8 +127,10 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
          const max = rows.length;
          rows.forEach((row, idxFromTop) => {
            const desired = idxFromTop + 1; // top = 1 (highest priority)
+           console.log(`Row ${row.documentId}: current priority=${row.priority}, desired=${desired}`);
            if (row.priority !== desired) {
              const documentId = row.documentId;
+             console.log(`Updating ${documentId} to priority ${desired}`);
              // optimistic UI update
              updatesForUi.push({ ...row, priority: desired });
 
@@ -136,6 +141,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
                cache: 'no-store',
              }).then(r => {
                if (!r.ok) return r.text().then(t => Promise.reject(new Error(`${r.status} ${t}`)));
+               console.log(`Successfully updated ${documentId} to priority ${desired}`);
              }));
            }
          });
@@ -174,7 +180,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     }
-  }
+  }, [STRAPI_BASE, toast])
 
   // Load merchants for lookup
   useEffect(() => {
@@ -725,7 +731,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
     // Use the new merchant-based reordering
     void reorderByBucket(event.api)
-  }, [])
+  }, [reorderByBucket])
 
   const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
     const selectedNodes = event.api.getSelectedNodes()
