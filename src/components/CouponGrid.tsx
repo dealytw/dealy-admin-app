@@ -14,6 +14,7 @@ import { Badge } from './ui/badge'
 import { Checkbox } from './ui/checkbox'
 import { Calendar } from './ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from './ui/context-menu'
 import { MerchantSelector } from './MerchantSelector'
 import { MarketSelector } from './MarketSelector'
 import { SavedViewsManager } from './SavedViewsManager'
@@ -84,6 +85,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
   const [merchants, setMerchants] = useState<Merchant[]>([]) // Store all merchants for lookup
   const [sites, setSites] = useState<Site[]>([]) // Store all sites for lookup
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
+  const [contextMenuRowData, setContextMenuRowData] = useState<Coupon | null>(null)
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -742,134 +746,120 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     setSelectedRows(selectedIds)
   }, [])
 
-  // Context menu handler
-  const getContextMenuItems = useCallback((params: any) => {
-    console.log('getContextMenuItems called with params:', params)
-    const { node, column, value } = params
-    const isRowSelected = node?.isSelected()
+  // Custom context menu handlers
+  const handleContextMenu = useCallback((event: React.MouseEvent, rowData: Coupon) => {
+    event.preventDefault()
+    event.stopPropagation()
     
-    return [
-      {
-        name: 'Copy Row Data',
-        icon: '<span class="ag-icon ag-icon-copy"></span>',
-        action: () => {
-          if (node?.data) {
-            const rowData = node.data
-            const textToCopy = `${rowData.coupon_title} | ${rowData.value} | ${rowData.code} | ${rowData.affiliate_link}`
-            navigator.clipboard.writeText(textToCopy)
-            toast({
-              title: 'Copied to clipboard',
-              description: 'Row data has been copied',
-            })
-          }
+    setContextMenuPosition({ x: event.clientX, y: event.clientY })
+    setContextMenuRowData(rowData)
+    setContextMenuOpen(true)
+  }, [])
+
+  const handleCopyRowData = useCallback(() => {
+    if (contextMenuRowData) {
+      const textToCopy = `${contextMenuRowData.coupon_title} | ${contextMenuRowData.value} | ${contextMenuRowData.code} | ${contextMenuRowData.affiliate_link}`
+      navigator.clipboard.writeText(textToCopy)
+      toast({
+        title: 'Copied to clipboard',
+        description: 'Row data has been copied',
+      })
+    }
+    setContextMenuOpen(false)
+  }, [contextMenuRowData, toast])
+
+  const handleDuplicateRow = useCallback(async () => {
+    if (contextMenuRowData) {
+      try {
+        const couponData = {
+          coupon_title: `${contextMenuRowData.coupon_title} (Copy)`,
+          merchant: contextMenuRowData.merchant?.documentId,
+          market: contextMenuRowData.market?.documentId,
+          value: contextMenuRowData.value,
+          code: contextMenuRowData.code,
+          coupon_type: contextMenuRowData.coupon_type,
+          affiliate_link: contextMenuRowData.affiliate_link,
+          description: contextMenuRowData.description,
+          editor_tips: contextMenuRowData.editor_tips,
+          priority: Math.max(...rowData.map(r => r.priority)) + 1,
+          starts_at: contextMenuRowData.starts_at,
+          expires_at: contextMenuRowData.expires_at,
+          coupon_status: contextMenuRowData.coupon_status || 'active',
+          user_count: contextMenuRowData.user_count,
+          display_count: contextMenuRowData.display_count,
+          site: contextMenuRowData.site
         }
-      },
-      {
-        name: 'Duplicate Row',
-        icon: '<span class="ag-icon ag-icon-copy"></span>',
-        action: async () => {
-          if (node?.data) {
-            try {
-              const coupon = node.data
-              const couponData = {
-                coupon_title: `${coupon.coupon_title} (Copy)`,
-                merchant: coupon.merchant?.documentId,
-                market: coupon.market?.documentId,
-                value: coupon.value,
-                code: coupon.code,
-                coupon_type: coupon.coupon_type,
-                affiliate_link: coupon.affiliate_link,
-                description: coupon.description,
-                editor_tips: coupon.editor_tips,
-                priority: Math.max(...rowData.map(r => r.priority)) + 1,
-                starts_at: coupon.starts_at,
-                expires_at: coupon.expires_at,
-                coupon_status: coupon.coupon_status || 'active',
-                user_count: coupon.user_count,
-                display_count: coupon.display_count,
-                site: coupon.site
-              }
-              
-              await couponsAdapter.create(couponData)
-              onCouponsChange()
-              toast({
-                title: 'Coupon duplicated',
-                description: 'New coupon created successfully',
-              })
-            } catch (error) {
-              toast({
-                variant: 'destructive',
-                title: 'Duplicate failed',
-                description: error instanceof Error ? error.message : 'Unknown error',
-              })
-            }
-          }
-        }
-      },
-      'separator',
-      {
-        name: 'Add New Below',
-        icon: '<span class="ag-icon ag-icon-plus"></span>',
-        action: () => {
-          if (node?.data) {
-            const rowIndex = node.rowIndex
-            // Add a new empty row below the current one
-            const newCoupon = {
-              coupon_title: 'New Coupon',
-              merchant: node.data.merchant?.documentId,
-              market: node.data.market?.documentId,
-              value: '',
-              code: '',
-              coupon_type: 'promo_code',
-              affiliate_link: '',
-              description: '',
-              editor_tips: '',
-              priority: node.data.priority + 1,
-              starts_at: '',
-              expires_at: '',
-              coupon_status: 'active',
-              user_count: 0,
-              display_count: 0,
-              site: node.data.site
-            }
-            
-            // Insert the new row in the grid
-            const newRowData = [...rowData]
-            newRowData.splice(rowIndex + 1, 0, newCoupon)
-            setRowData(newRowData)
-            
-            toast({
-              title: 'New row added',
-              description: 'New coupon row inserted below',
-            })
-          }
-        }
-      },
-      'separator',
-      {
-        name: 'Delete Row',
-        icon: '<span class="ag-icon ag-icon-trash"></span>',
-        action: async () => {
-          if (node?.data && confirm('Are you sure you want to delete this coupon?')) {
-            try {
-              await couponsAdapter.remove(node.data.documentId)
-              onCouponsChange()
-              toast({
-                title: 'Coupon deleted',
-                description: 'Coupon has been removed',
-              })
-            } catch (error) {
-              toast({
-                variant: 'destructive',
-                title: 'Delete failed',
-                description: error instanceof Error ? error.message : 'Unknown error',
-              })
-            }
-          }
-        }
+        
+        await couponsAdapter.create(couponData)
+        onCouponsChange()
+        toast({
+          title: 'Coupon duplicated',
+          description: 'New coupon created successfully',
+        })
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Duplicate failed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+        })
       }
-    ]
-  }, [rowData, couponsAdapter, onCouponsChange, toast])
+    }
+    setContextMenuOpen(false)
+  }, [contextMenuRowData, rowData, couponsAdapter, onCouponsChange, toast])
+
+  const handleAddNewBelow = useCallback(() => {
+    if (contextMenuRowData) {
+      const rowIndex = rowData.findIndex(row => row.documentId === contextMenuRowData.documentId)
+      const newCoupon = {
+        coupon_title: 'New Coupon',
+        merchant: contextMenuRowData.merchant?.documentId,
+        market: contextMenuRowData.market?.documentId,
+        value: '',
+        code: '',
+        coupon_type: 'promo_code',
+        affiliate_link: '',
+        description: '',
+        editor_tips: '',
+        priority: contextMenuRowData.priority + 1,
+        starts_at: '',
+        expires_at: '',
+        coupon_status: 'active',
+        user_count: 0,
+        display_count: 0,
+        site: contextMenuRowData.site
+      }
+      
+      const newRowData = [...rowData]
+      newRowData.splice(rowIndex + 1, 0, newCoupon)
+      setRowData(newRowData)
+      
+      toast({
+        title: 'New row added',
+        description: 'New coupon row inserted below',
+      })
+    }
+    setContextMenuOpen(false)
+  }, [contextMenuRowData, rowData, toast])
+
+  const handleDeleteRow = useCallback(async () => {
+    if (contextMenuRowData && confirm('Are you sure you want to delete this coupon?')) {
+      try {
+        await couponsAdapter.remove(contextMenuRowData.documentId)
+        onCouponsChange()
+        toast({
+          title: 'Coupon deleted',
+          description: 'Coupon has been removed',
+        })
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Delete failed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    }
+    setContextMenuOpen(false)
+  }, [contextMenuRowData, couponsAdapter, onCouponsChange, toast])
 
   const handleDelete = async (documentId: string) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return
@@ -1296,13 +1286,10 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onCellValueChanged={onCellValueChanged}
            onRowDragEnd={onRowDragEnd}
            onSelectionChanged={onSelectionChanged}
-           enableContextMenu={true}
-           getContextMenuItems={getContextMenuItems}
-           suppressContextMenu={false}
+           suppressContextMenu={true}
            onCellContextMenu={(event) => {
-             // Only prevent default if we're not showing AG Grid context menu
-             // Let AG Grid handle the context menu first
-             console.log('Cell context menu event:', event)
+             // Handle custom context menu
+             handleContextMenu(event.event as any, event.data)
            }}
            onBodyContextMenu={(event) => {
              // Prevent browser context menu on empty areas
@@ -1378,6 +1365,50 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             : undefined
         }
       />
+
+      {/* Custom Context Menu */}
+      <ContextMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
+        <ContextMenuTrigger asChild>
+          <div 
+            style={{ 
+              position: 'fixed', 
+              left: contextMenuPosition.x, 
+              top: contextMenuPosition.y,
+              width: 1,
+              height: 1,
+              pointerEvents: 'none',
+              zIndex: 9999
+            }}
+          />
+        </ContextMenuTrigger>
+        <ContextMenuContent 
+          style={{ 
+            position: 'fixed', 
+            left: contextMenuPosition.x, 
+            top: contextMenuPosition.y,
+            zIndex: 10000
+          }}
+        >
+          <ContextMenuItem onClick={handleCopyRowData}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Row Data
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleDuplicateRow}>
+            <Copy className="mr-2 h-4 w-4" />
+            Duplicate Row
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleAddNewBelow}>
+            <Edit3 className="mr-2 h-4 w-4" />
+            Add New Below
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleDeleteRow} className="text-red-600">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Row
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   )
 }
