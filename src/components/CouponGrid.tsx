@@ -88,6 +88,61 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuRowData, setContextMenuRowData] = useState<Coupon | null>(null)
+  
+  // Excel-like clipboard state
+  const [clipboardData, setClipboardData] = useState<{ value: any; field: string } | null>(null)
+  
+  // Excel-like keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when grid is focused
+      if (!event.ctrlKey) return
+      
+      const gridApi = gridRef.current?.api
+      if (!gridApi) return
+      
+      const focusedCell = gridApi.getFocusedCell()
+      if (!focusedCell) return
+      
+      const rowNode = gridApi.getRowNode(focusedCell.rowIndex.toString())
+      if (!rowNode) return
+      
+      const rowData = rowNode.data as Coupon
+      const field = focusedCell.column.getColId()
+      
+      switch (event.key.toLowerCase()) {
+        case 'c':
+          // Ctrl+C: Copy cell value
+          event.preventDefault()
+          const cellValue = rowData[field as keyof Coupon]
+          setClipboardData({ value: cellValue, field })
+          toast({
+            title: 'Cell copied',
+            description: `"${cellValue}" copied to clipboard`,
+          })
+          break
+          
+        case 'v':
+          // Ctrl+V: Paste cell value
+          if (clipboardData && clipboardData.field === field) {
+            event.preventDefault()
+            const updates = { [field]: clipboardData.value }
+            setPendingChanges(prev => ({
+              ...prev,
+              [rowData.documentId]: { ...prev[rowData.documentId], ...updates }
+            }))
+            toast({
+              title: 'Cell pasted',
+              description: `"${clipboardData.value}" pasted`,
+            })
+          }
+          break
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [clipboardData, toast])
   const [visibleColumns, setVisibleColumns] = useState({
     merchant: true,
     coupon_title: true,
@@ -1383,6 +1438,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
              sortable: true,
              filter: true,
              resizable: true,
+             editable: true,
+             // Excel-like single-click editing
+             singleClickEdit: true,
              suppressKeyboardEvent: (params) => {
                // Disable AG Grid's copy/paste handling
                const key = params.event.key.toLowerCase()
