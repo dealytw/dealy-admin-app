@@ -668,7 +668,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'coupon_title', 
       headerName: 'Title',
-      width: 200,
+      width: 300,
+      minWidth: 200,
       editable: true,
       wrapText: true,
       autoHeight: true,
@@ -699,7 +700,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'affiliate_link', 
       headerName: 'Affiliate Link',
-      width: 150,
+      width: 250,
+      minWidth: 150,
       editable: true,
       cellRenderer: ({ value }: any) => (
         <div className="truncate" title={value}>
@@ -710,7 +712,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'description', 
       headerName: 'Description',
-      width: 200,
+      width: 300,
+      minWidth: 200,
       editable: true,
       wrapText: true,
       autoHeight: true,
@@ -723,7 +726,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { 
       field: 'editor_tips', 
       headerName: 'Editor Tips',
-      width: 150,
+      width: 300,
+      minWidth: 200,
       editable: true,
       wrapText: true,
       autoHeight: true,
@@ -1392,7 +1396,8 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
 
       {/* Grid */}
       <div 
-        className="flex-1 ag-theme-quartz"
+        className="flex-1 ag-theme-quartz w-full"
+        style={{ width: '100%', minWidth: '100%' }}
         onContextMenu={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -1400,6 +1405,16 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         }}
       >
         <style>{`
+          .ag-theme-quartz {
+            width: 100% !important;
+            height: 600px !important;
+          }
+          .ag-theme-quartz .ag-root-wrapper {
+            width: 100% !important;
+          }
+          .ag-theme-quartz .ag-body-viewport {
+            overflow-x: auto !important;
+          }
           .ag-theme-quartz .ag-row-drag {
             cursor: move;
             display: flex !important;
@@ -1469,7 +1484,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            suppressMoveWhenRowDragging
            animateRows
            
-                       // Disable AG Grid's copy/paste functionality
+           // Grid sizing and responsiveness
+           domLayout="normal"
+           suppressHorizontalScroll={false}
+           suppressColumnVirtualisation={true}
+           
+           // Disable AG Grid's copy/paste functionality
             suppressCopyRowsToClipboard={true}
             suppressCopySingleCellRanges={true}
             suppressPasteSingleCellRanges={true}
@@ -1494,7 +1514,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
                display: 'flex',
                alignItems: 'center',
                height: '100%',
-               minHeight: '40px'
+               minHeight: '40px',
+               whiteSpace: 'nowrap',
+               overflow: 'visible'
              }
            }}
            enterNavigatesVertically={true}
