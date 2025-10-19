@@ -73,17 +73,20 @@ class StrapiCouponsAdapter implements CouponsPort {
   }
 
   async update(documentId: string, patch: CouponUpdateInput): Promise<Coupon> {
-    // Ensure required fields are not null/undefined
+    // Handle null values properly - send them explicitly to API
     const cleanPatch = {
       ...patch,
-      affiliate_link: patch.affiliate_link ?? undefined, // Only send if not null
-      description: patch.description ?? undefined,
-      editor_tips: patch.editor_tips ?? undefined,
-      value: patch.value ?? undefined,
-      code: patch.code ?? undefined,
+      // Keep empty strings as empty strings for affiliate_link and code
+      // CMS expects string type, so empty string is valid
+      affiliate_link: patch.affiliate_link,
+      code: patch.code,
+      // For other fields: convert empty strings to undefined
+      description: patch.description === '' ? undefined : patch.description,
+      editor_tips: patch.editor_tips === '' ? undefined : patch.editor_tips,
+      value: patch.value === '' ? undefined : patch.value,
     }
     
-    // Remove undefined values to avoid sending them
+    // Remove only undefined values, but keep empty strings and null values
     Object.keys(cleanPatch).forEach(key => {
       if (cleanPatch[key as keyof typeof cleanPatch] === undefined) {
         delete cleanPatch[key as keyof typeof cleanPatch]
