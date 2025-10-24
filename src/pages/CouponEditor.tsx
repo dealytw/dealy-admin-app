@@ -8,6 +8,7 @@ import { couponsAdapter } from '../data/strapiCoupons'
 import type { Coupon, CouponFilters } from '../domain/coupons'
 import { LogOut, Plus, RefreshCw, BarChart3 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { revalidateCache } from '../lib/cacheRevalidation'
 
 export function CouponEditor() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
@@ -45,14 +46,22 @@ export function CouponEditor() {
   const handleCreateNew = async () => {
     try {
       const maxPriority = Math.max(...coupons.map(c => c.priority), 0)
-      await couponsAdapter.create({
+      const newCoupon = await couponsAdapter.create({
         coupon_title: 'New Coupon',
         priority: maxPriority + 1,
       })
+      
+      // Trigger cache revalidation for homepage and merchants list
+      console.log('🔄 Triggering cache revalidation for new coupon')
+      const cacheSuccess = await revalidateCache({
+        tags: ['list:home', 'merchants:list'],
+        purge: true
+      })
+      
       loadCoupons()
       toast({
         title: 'Coupon created',
-        description: 'A new coupon has been added',
+        description: `A new coupon has been added${cacheSuccess ? ' • Cache refreshed' : ''}`,
       })
     } catch (error) {
       toast({

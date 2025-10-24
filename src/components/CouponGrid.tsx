@@ -27,6 +27,7 @@ import type { Coupon, CouponFilters, Merchant, Site } from '../domain/coupons'
 import { couponsAdapter, merchantsAdapter, sitesAdapter } from '../data/strapiCoupons'
 import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
+import { revalidateCache, extractMerchantSlugs } from '../lib/cacheRevalidation'
 
 // API Token for Strapi Cloud authentication (same as strapiClient.ts)
 const API_TOKEN = '78691c3d235968dc74694b86e2806cf5b982f373a89feae13b2195c740f58829144a8f0ac34f3652fcdf4d28a2eb8c1da457b7c53e70a9eb7b4602a0460aab4a70202e093a2c5a8c29ed8e02b686c8e437c7df758c75bfee6cae7db659c1bbc2472f54b82e476fd492721cefac6fc4c3d8125363a0ff90c5b534050ac5f4bc3e';
@@ -361,9 +362,34 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       setPendingChanges({})
       onCouponsChange()
       
+      // Extract affected merchants for cache revalidation
+      const affectedCoupons = [
+        ...Object.keys(pendingChanges).map(id => rowData.find(row => row.documentId === id)).filter(Boolean),
+        ...newRows
+      ].filter(Boolean) as Coupon[]
+      
+      const affectedMerchants = extractMerchantSlugs(affectedCoupons)
+      
+      // Trigger cache revalidation for affected merchants
+      if (affectedMerchants.length > 0) {
+        console.log('🔄 Triggering cache revalidation for merchants:', affectedMerchants)
+        
+        const cacheSuccess = await revalidateCache({
+          merchants: affectedMerchants,
+          tags: ['merchants:list'], // Also refresh merchants list page
+          purge: true
+        })
+        
+        if (cacheSuccess) {
+          console.log('✅ Cache revalidation completed successfully')
+        } else {
+          console.warn('⚠️ Cache revalidation failed, but coupon save was successful')
+        }
+      }
+      
       toast({
         title: 'Changes saved',
-        description: `Updated ${Object.keys(pendingChanges).length} coupons and created ${newRows.length} new coupons`,
+        description: `Updated ${Object.keys(pendingChanges).length} coupons and created ${newRows.length} new coupons${affectedMerchants.length > 0 ? ` • Cache refreshed for ${affectedMerchants.length} merchants` : ''}`,
       })
     } catch (error) {
       toast({
@@ -1160,11 +1186,33 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       )
       
       await Promise.all(updatePromises)
+      
+      // Extract affected merchants for cache revalidation
+      const affectedCoupons = selectedRows.map(id => rowData.find(row => row.documentId === id)).filter(Boolean) as Coupon[]
+      const affectedMerchants = extractMerchantSlugs(affectedCoupons)
+      
+      // Trigger cache revalidation for affected merchants
+      if (affectedMerchants.length > 0) {
+        console.log('🔄 Triggering cache revalidation for bulk status change:', affectedMerchants)
+        
+        const cacheSuccess = await revalidateCache({
+          merchants: affectedMerchants,
+          tags: ['merchants:list'],
+          purge: true
+        })
+        
+        if (cacheSuccess) {
+          console.log('✅ Cache revalidation completed successfully')
+        } else {
+          console.warn('⚠️ Cache revalidation failed, but status update was successful')
+        }
+      }
+      
       setSelectedRows([])
       onCouponsChange()
       toast({
         title: 'Status updated',
-        description: `${selectedRows.length} coupons updated to ${status}`,
+        description: `${selectedRows.length} coupons updated to ${status}${affectedMerchants.length > 0 ? ` • Cache refreshed for ${affectedMerchants.length} merchants` : ''}`,
       })
     } catch (error) {
       toast({

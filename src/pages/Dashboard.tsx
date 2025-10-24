@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Progress } from '../components/ui/progress'
 import { AnalyticsCharts } from '../components/AnalyticsCharts'
+import { CouponCacheManagement } from '../components/CouponCacheManagement'
 import { useAuth } from '../contexts/AuthContext'
 import { couponsAdapter, merchantsAdapter } from '../data/strapiCoupons'
 import type { Coupon, Merchant } from '../domain/coupons'
@@ -23,7 +24,9 @@ import {
   Plus,
   LineChart,
   RefreshCw,
-  Archive
+  Archive,
+  Database,
+  Monitor
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -296,6 +299,10 @@ export function Dashboard() {
               <LineChart className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="cache-management">
+              <Database className="h-4 w-4 mr-2" />
+              Cache Management
+            </TabsTrigger>
             <TabsTrigger value="markets">Markets</TabsTrigger>
             <TabsTrigger value="activity">Recent Activity</TabsTrigger>
           </TabsList>
@@ -384,6 +391,10 @@ export function Dashboard() {
 
           <TabsContent value="analytics" className="space-y-6">
             <AnalyticsCharts />
+          </TabsContent>
+
+          <TabsContent value="cache-management" className="space-y-6">
+            <CouponCacheManagement />
           </TabsContent>
 
           <TabsContent value="markets" className="space-y-6">
