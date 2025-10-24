@@ -12,9 +12,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Temporarily skip authentication for development
-  // TODO: Re-enable authentication later
-  /*
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true, state: { from: location } })
@@ -24,7 +21,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (!isAuthenticated) {
     return null
   }
-  */
 
   return <>{children}</>
 }

@@ -25,11 +25,19 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route 
               path="/dashboard" 
-              element={<Dashboard />}
+              element={
+                <AuthGuard>
+                  <Dashboard />
+                </AuthGuard>
+              }
             />
             <Route 
               path="/coupon-editor" 
-              element={<CouponEditor />}
+              element={
+                <AuthGuard>
+                  <CouponEditor />
+                </AuthGuard>
+              }
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

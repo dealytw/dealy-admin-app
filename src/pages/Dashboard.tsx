@@ -149,6 +149,18 @@ export function Dashboard() {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                logout()
+                navigate('/login')
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Last updated: {lastRefresh.toLocaleTimeString()}</span>
               <div className="flex items-center gap-1">
