@@ -60,11 +60,13 @@ async function runWithConcurrency(tasks: Array<() => Promise<any>>, limit = 4) {
 // Default: per merchant only. If you want per (merchant+market+site), set COMPOSITE_KEY = true.
 const COMPOSITE_KEY = false;
 function bucketKey(row: any) {
+  // Group by coupon status first, then by merchant
+  const status = row.coupon_status || 'active'; // Default to active if no status
   const m = row.merchant?.documentId || 'none';
-  if (!COMPOSITE_KEY) return m;
+  if (!COMPOSITE_KEY) return `${status}|${m}`;
   const market = row.market || '';
   const site = row.site || '';
-  return `${m}|${market}|${site}`;
+  return `${status}|${m}|${market}|${site}`;
 }
 
 interface CouponGridProps {
@@ -188,33 +190,47 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       
       console.log('Buckets created:', buckets.size);
 
-      // 2) build update jobs; top row gets largest number
+      // 2) build update jobs; separate priority lists for each status
       const jobs: Array<() => Promise<any>> = [];
       const updatesForUi: any[] = [];
 
-             for (const [, rows] of buckets) {
-         const max = rows.length;
-         rows.forEach((row, idxFromTop) => {
-           const desired = idxFromTop + 1; // top = 1 (highest priority)
-           console.log(`Row ${row.documentId}: current priority=${row.priority}, desired=${desired}`);
-           if (row.priority !== desired) {
-             const documentId = row.documentId;
-             console.log(`Updating ${documentId} to priority ${desired}`);
-             // optimistic UI update
-             updatesForUi.push({ ...row, priority: desired });
+      // Group buckets by status to ensure separate priority lists
+      const statusGroups = new Map<string, Map<string, any[]>>();
+      for (const [bucketKey, rows] of buckets) {
+        const [status] = bucketKey.split('|');
+        if (!statusGroups.has(status)) {
+          statusGroups.set(status, new Map());
+        }
+        statusGroups.get(status)!.set(bucketKey, rows);
+      }
 
-             jobs.push(() => fetch(`${STRAPI_BASE}/api/coupons/${documentId}`, {
-               method: 'PUT',
-               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_TOKEN}` },
-               body: JSON.stringify({ data: { priority: desired } }), // v5 requires {data}
-               cache: 'no-store',
-             }).then(r => {
-               if (!r.ok) return r.text().then(t => Promise.reject(new Error(`${r.status} ${t}`)));
-               console.log(`Successfully updated ${documentId} to priority ${desired}`);
-             }));
-           }
-         });
-       }
+      // Assign priorities within each status group
+      for (const [status, statusBuckets] of statusGroups) {
+        let globalPriority = 1; // Start from 1 for each status group
+        
+        for (const [, rows] of statusBuckets) {
+          rows.forEach((row) => {
+            const desired = globalPriority++;
+            console.log(`Row ${row.documentId} (${status}): current priority=${row.priority}, desired=${desired}`);
+            if (row.priority !== desired) {
+              const documentId = row.documentId;
+              console.log(`Updating ${documentId} to priority ${desired}`);
+              // optimistic UI update
+              updatesForUi.push({ ...row, priority: desired });
+
+              jobs.push(() => fetch(`${STRAPI_BASE}/api/coupons/${documentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_TOKEN}` },
+                body: JSON.stringify({ data: { priority: desired } }), // v5 requires {data}
+                cache: 'no-store',
+              }).then(r => {
+                if (!r.ok) return r.text().then(t => Promise.reject(new Error(`${r.status} ${t}`)));
+                console.log(`Successfully updated ${documentId} to priority ${desired}`);
+              }));
+            }
+          });
+        }
+      }
 
       // 3) apply optimistic UI once
       if (updatesForUi.length) {
