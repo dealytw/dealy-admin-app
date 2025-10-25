@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (data.jwt && data.user) {
         // Fetch user's role with a second API call (Strapi v5 doesn't include role in login response)
-        const meResponse = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/users/me?populate=role`, {
+        const meResponse = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/users/me?populate[role][populate]=*`, {
           headers: { 
             'Authorization': `Bearer ${data.jwt}`,
             'Content-Type': 'application/json'
@@ -86,6 +86,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         const meData = await meResponse.json();
+        
+        console.log('AuthContext: Full /users/me response', meData);
+        console.log('AuthContext: User data from /users/me', meData);
+        console.log('AuthContext: Role object from /users/me', meData?.role);
+        
         const userRole = meData?.role?.name || meData?.role?.type;
         
         console.log('AuthContext: User role from /users/me', { role: userRole });
