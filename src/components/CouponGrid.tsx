@@ -25,7 +25,7 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useToast } from '../hooks/use-toast'
 import type { Coupon, CouponFilters, Merchant, Site } from '../domain/coupons'
 import { couponsAdapter, merchantsAdapter, sitesAdapter } from '../data/strapiCoupons'
-import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard, CalendarIcon } from 'lucide-react'
+import { Trash2, Save, RotateCcw, Users, Settings, Copy, Archive, Edit3, Clipboard, CalendarIcon, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { revalidateCache, extractMerchantSlugs } from '../lib/cacheRevalidation'
 
@@ -86,6 +86,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [copiedCoupon, setCopiedCoupon] = useState<Coupon | null>(null)
   const [merchants, setMerchants] = useState<Merchant[]>([]) // Store all merchants for lookup
   const [sites, setSites] = useState<Site[]>([]) // Store all sites for lookup
+  const [merchantSearchInput, setMerchantSearchInput] = useState('') // Local state for merchant search input
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuRowData, setContextMenuRowData] = useState<Coupon | null>(null)
@@ -291,6 +292,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       merchant_id: c.merchant_id
     })))
   }, [coupons])
+
+  // Sync merchant search input with current filter
+  useEffect(() => {
+    setMerchantSearchInput(filters.merchant || '')
+  }, [filters.merchant])
 
   // Apply sorting by priority when data changes
   useEffect(() => {
@@ -905,6 +911,10 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     setSelectedRows(selectedIds)
   }, [])
 
+  const handleMerchantSearch = useCallback(() => {
+    onFiltersChange({ ...filters, merchant: merchantSearchInput })
+  }, [filters, merchantSearchInput, onFiltersChange])
+
   // Custom context menu handlers
   const handleContextMenu = useCallback((event: React.MouseEvent, rowData: Coupon) => {
     console.log('handleContextMenu called with:', { event, rowData })
@@ -1316,12 +1326,27 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
             className="max-w-xs"
           />
-          <Input
-            placeholder="Search merchant..."
-            value={filters.merchant || ''}
-            onChange={(e) => onFiltersChange({ ...filters, merchant: e.target.value })}
-            className="max-w-xs"
-          />
+          <div className="flex gap-2 max-w-xs">
+            <Input
+              placeholder="Search merchant..."
+              value={merchantSearchInput}
+              onChange={(e) => setMerchantSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleMerchantSearch()
+                }
+              }}
+              className="flex-1"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMerchantSearch}
+              className="px-3"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
           
                                <Select
             value={filters.market || 'all'}
