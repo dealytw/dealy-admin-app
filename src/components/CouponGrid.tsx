@@ -1627,19 +1627,49 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
               }
             })
             
-            // Save on any column state change
+            // Prevent column state reset during cell interactions
+            let isApplyingState = false
             p.api.addEventListener('columnStateChanged', (event: any) => {
-              try {
-                const state = p.api.getColumnState()
-                console.log('Saving column state on change:', state)
-                sessionStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
-              } catch (error) {
-                console.warn('Failed to save column state:', error)
+              if (!isApplyingState) {
+                try {
+                  const state = p.api.getColumnState()
+                  console.log('Saving column state on change:', state)
+                  sessionStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
+                } catch (error) {
+                  console.warn('Failed to save column state:', error)
+                }
               }
+            })
+            
+            // Re-apply column state after cell value changes to prevent resets
+            p.api.addEventListener('cellValueChanged', () => {
+              setTimeout(() => {
+                try {
+                  const saved = sessionStorage.getItem('coupon-grid-column-state')
+                  if (saved) {
+                    const state = JSON.parse(saved)
+                    if (state && state.length > 0) {
+                      isApplyingState = true
+                      p.api.applyColumnState({ 
+                        state: state,
+                        applyOrder: true,
+                        defaultState: { sort: null }
+                      })
+                      setTimeout(() => { isApplyingState = false }, 100)
+                    }
+                  }
+                } catch (error) {
+                  console.warn('Failed to re-apply column state:', error)
+                }
+              }, 50)
             })
           }}
 
-           rowSelection="multiple"
+           rowSelection={{
+             type: 'multiple',
+             enableClickSelection: false,
+             copySelectedRows: false
+           }}
            suppressRowClickSelection={false}
            rowDragManaged
            rowDragText={(params) => `Priority ${params.rowNode.data.priority}`}
@@ -1652,12 +1682,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            suppressColumnVirtualisation={true}
            maintainColumnOrder={true}
            suppressColumnMoveAnimation={true}
-           suppressColumnStateEvents={false}
            
            // Disable AG Grid's copy/paste functionality
-            suppressCopyRowsToClipboard={true}
-            suppressCopySingleCellRanges={true}
-            suppressPasteSingleCellRanges={true}
+           suppressCopyRowsToClipboard={true}
+           suppressCopySingleCellRanges={true}
+           suppressPasteSingleCellRanges={true}
            
            defaultColDef={{
              sortable: true,
