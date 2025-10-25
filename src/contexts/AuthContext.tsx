@@ -72,8 +72,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await response.json();
       
       if (data.jwt && data.user) {
-        // Fetch user's role with a second API call (Strapi v5 doesn't include role in login response)
-        const meResponse = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/users/me?populate[role][populate]=*`, {
+        // Fetch user data with a second API call (Strapi v5 doesn't include role in login response)
+        const meResponse = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/users/me`, {
           headers: { 
             'Authorization': `Bearer ${data.jwt}`,
             'Content-Type': 'application/json'
@@ -81,47 +81,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
         
         if (!meResponse.ok) {
-          console.log('AuthContext: Failed to fetch user role');
+          console.log('AuthContext: Failed to fetch user data');
           return false;
         }
         
         const meData = await meResponse.json();
         
-        console.log('AuthContext: Full /users/me response', meData);
         console.log('AuthContext: User data from /users/me', meData);
-        console.log('AuthContext: Role object from /users/me', meData?.role);
         
-        const userRole = meData?.role?.name || meData?.role?.type;
-        
-        console.log('AuthContext: User role from /users/me', { role: userRole });
-        
-        // Check if user has admin role
-        const ALLOWED_ROLES = ['Super Admin', 'Super Editor', 'Editor', 'Authenticated', 'EditorApp'];
-        if (!ALLOWED_ROLES.includes(userRole)) {
-          console.log('AuthContext: User role not authorized', { role: userRole });
+        // Check if user email is in allowlist (Strapi v5 sanitizes role from /users/me)
+        const ALLOWED_EMAILS = new Set(['dealytw@gmail.com', 'admin@dealy.tw']);
+        if (!ALLOWED_EMAILS.has(meData.email)) {
+          console.log('AuthContext: Email not in allowlist', { email: meData.email });
           return false;
         }
 
         setToken(data.jwt);
         setUser({
-          id: data.user.id,
-          username: data.user.username,
-          email: data.user.email,
-          role: userRole,
+          id: meData.id,
+          username: meData.username,
+          email: meData.email,
+          role: 'Admin', // Fixed role since we're using email allowlist
         });
 
         // Store in session storage
         sessionStorage.setItem('admin_token', data.jwt);
         sessionStorage.setItem('admin_user', JSON.stringify({
-          id: data.user.id,
-          username: data.user.username,
-          email: data.user.email,
-          role: userRole,
+          id: meData.id,
+          username: meData.username,
+          email: meData.email,
+          role: 'Admin',
         }));
 
         console.log('AuthContext: Login successful', { 
-          user: data.user.username, 
-          role: userRole,
+          user: meData.username, 
+          email: meData.email,
           token: !!data.jwt 
         });
 
