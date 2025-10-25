@@ -18,7 +18,6 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 import { MerchantSelector } from './MerchantSelector'
 import { MarketSelector } from './MarketSelector'
 import { SavedViewsManager } from './SavedViewsManager'
-import { ValidationCell } from './ValidationBadges'
 import { RichTextRenderer } from './RichTextRenderer'
 import { RichTextCellEditor } from './RichTextCellEditor'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
@@ -167,7 +166,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     coupon_status: true,
     market: true,
     site: true,
-    validation: true,
     actions: true
   })
   const [showColumnToggle, setShowColumnToggle] = useState(false)
@@ -890,15 +888,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     },
     
     {
-      headerName: 'Issues',
-      width: 200,
-      cellRenderer: ValidationCell,
-      editable: false,
-      sortable: false,
-      filter: false,
-      cellStyle: { padding: '4px' }
-    },
-    {
       headerName: 'Delete',
       width: 80,
       cellRenderer: DeleteCell,
@@ -1306,7 +1295,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     { key: 'coupon_status', label: 'Status' },
     { key: 'market', label: 'Market' },
     { key: 'site', label: 'Site' },
-    { key: 'validation', label: 'Issues' },
     { key: 'actions', label: 'Actions' },
   ]
 
@@ -1324,10 +1312,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     // Always show actions column
     if (col.headerName === 'Delete') {
       return visibleColumns.actions
-    }
-    // Show validation column
-    if (col.headerName === 'Issues') {
-      return visibleColumns.validation
     }
     return true
   })
