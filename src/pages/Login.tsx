@@ -23,17 +23,25 @@ export function Login() {
     setIsLoading(true)
 
     try {
-      await login(identifier, password)
-      toast({
-        title: 'Login successful',
-        description: 'Choose where you want to go next!',
-      })
-      setIsLoggedIn(true)
+      const success = await login(identifier, password)
+      if (success) {
+        toast({
+          title: 'Login successful',
+          description: 'Choose where you want to go next!',
+        })
+        setIsLoggedIn(true)
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Login failed',
+          description: 'Invalid credentials or insufficient permissions',
+        })
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: error instanceof Error ? error.message : 'Invalid credentials',
+        description: error instanceof Error ? error.message : 'Network error',
       })
     } finally {
       setIsLoading(false)

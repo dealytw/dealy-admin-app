@@ -40,24 +40,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const storedToken = sessionStorage.getItem('admin_token');
     const storedUser = sessionStorage.getItem('admin_user');
     
+    console.log('AuthContext: Checking stored session', { storedToken: !!storedToken, storedUser: !!storedUser });
+    
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+      console.log('AuthContext: Session restored', { token: !!storedToken, user: JSON.parse(storedUser) });
     }
     setIsLoading(false);
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
+      const requestBody = {
+        identifier: username,
+        password: password,
+      };
+      
       const response = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/auth/local`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          identifier: username,
-          password: password,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -67,8 +72,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await response.json();
       
       if (data.jwt && data.user) {
-        // Check if user has admin role
-        if (data.user.role?.type !== 'Administrator' && data.user.role?.type !== 'Editor') {
+        // Check if user has admin role (Strapi v5 structure)
+        const userRole = data.user.role?.type || data.user.role?.name;
+        if (userRole !== 'Super Admin' && userRole !== 'Super Editor' && userRole !== 'Editor') {
+          console.log('AuthContext: User role not authorized', { role: userRole });
           return false;
         }
 
@@ -88,6 +95,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: data.user.email,
           role: data.user.role?.type || 'User',
         }));
+
+        console.log('AuthContext: Login successful', { 
+          user: data.user.username, 
+          role: userRole,
+          token: !!data.jwt 
+        });
 
         return true;
       }

@@ -12,8 +12,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  console.log('AuthGuard: Checking authentication', { isAuthenticated });
+
   useEffect(() => {
     if (!isAuthenticated) {
+      console.log('AuthGuard: Not authenticated, redirecting to login');
       navigate('/login', { replace: true, state: { from: location } })
     }
   }, [isAuthenticated, navigate, location])
