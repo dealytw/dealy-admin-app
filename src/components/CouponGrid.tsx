@@ -654,10 +654,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     },
     { 
       field: 'priority',
-      headerName: '#',
+      headerName: 'Priority',
       width: 120,
       rowDrag: true,
       editable: true,
+      sortable: true,
       type: 'numericColumn',
       cellStyle: { 
         textAlign: 'center',
