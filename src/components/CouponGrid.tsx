@@ -1594,11 +1594,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            }}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
-            // Set default sort to Merchant ascending (A-Z)
-            p.api.applyColumnState({
-              state: [{ colId: 'merchant', sort: 'asc' }],
-              defaultState: { sort: null }
-            });
             
             // Session-only column state persistence (not across reloads)
             // Apply with delay to ensure grid is fully initialized
@@ -1614,10 +1609,27 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
                       applyOrder: true,
                       defaultState: { sort: null }
                     })
+                  } else {
+                    // No saved state, apply default merchant sort
+                    p.api.applyColumnState({
+                      state: [{ colId: 'merchant', sort: 'asc' }],
+                      defaultState: { sort: null }
+                    });
                   }
+                } else {
+                  // No saved state, apply default merchant sort
+                  p.api.applyColumnState({
+                    state: [{ colId: 'merchant', sort: 'asc' }],
+                    defaultState: { sort: null }
+                  });
                 }
               } catch (error) {
                 console.warn('Failed to load column state:', error)
+                // On error, apply default merchant sort
+                p.api.applyColumnState({
+                  state: [{ colId: 'merchant', sort: 'asc' }],
+                  defaultState: { sort: null }
+                });
               }
             }, 100)
             
