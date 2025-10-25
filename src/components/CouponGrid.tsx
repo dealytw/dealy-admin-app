@@ -87,7 +87,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const [merchants, setMerchants] = useState<Merchant[]>([]) // Store all merchants for lookup
   const [sites, setSites] = useState<Site[]>([]) // Store all sites for lookup
   const [merchantSearchInput, setMerchantSearchInput] = useState('') // Local state for merchant search input
-  const [columnState, setColumnState] = useState<any>(null) // Store column state for persistence
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuRowData, setContextMenuRowData] = useState<Coupon | null>(null)
@@ -298,11 +297,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   useEffect(() => {
     setMerchantSearchInput(filters.merchant || '')
   }, [filters.merchant])
-
-  // Load column state on component mount
-  useEffect(() => {
-    loadColumnState()
-  }, [loadColumnState])
 
   // Apply sorting by priority when data changes
   useEffect(() => {
@@ -920,52 +914,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
   const handleMerchantSearch = useCallback(() => {
     onFiltersChange({ ...filters, merchant: merchantSearchInput })
   }, [filters, merchantSearchInput, onFiltersChange])
-
-  // Column state persistence functions
-  const saveColumnState = useCallback((api: any) => {
-    const state = api.getColumnState()
-    localStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
-    setColumnState(state)
-  }, [])
-
-  const loadColumnState = useCallback(() => {
-    try {
-      const saved = localStorage.getItem('coupon-grid-column-state')
-      if (saved) {
-        const state = JSON.parse(saved)
-        setColumnState(state)
-        return state
-      }
-    } catch (error) {
-      console.warn('Failed to load column state:', error)
-    }
-    return null
-  }, [])
-
-  // Load column state directly from localStorage (no dependencies)
-  const getSavedColumnState = () => {
-    try {
-      const saved = localStorage.getItem('coupon-grid-column-state')
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    } catch (error) {
-      console.warn('Failed to load column state:', error)
-    }
-    return null
-  }
-
-  const onColumnResized = useCallback((event: any) => {
-    if (event.finished && gridRef.current?.api) {
-      saveColumnState(gridRef.current.api)
-    }
-  }, [saveColumnState])
-
-  const onColumnMoved = useCallback((event: any) => {
-    if (event.finished && gridRef.current?.api) {
-      saveColumnState(gridRef.current.api)
-    }
-  }, [saveColumnState])
 
   // Custom context menu handlers
   const handleContextMenu = useCallback((event: React.MouseEvent, rowData: Coupon) => {
@@ -1612,9 +1560,6 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onCellValueChanged={onCellValueChanged}
            onRowDragEnd={onRowDragEnd}
            onSelectionChanged={onSelectionChanged}
-           // Temporarily disable column handlers to fix white screen
-           // onColumnResized={onColumnResized}
-           // onColumnMoved={onColumnMoved}
            suppressContextMenu={true}
            onCellContextMenu={(event) => {
              console.log('AG Grid onCellContextMenu triggered:', event)
@@ -1635,12 +1580,30 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             (window as any).gridApi = p.api;
             // No automatic sorting - show natural order
             
-            // Temporarily disable column state loading to fix white screen
-            // TODO: Re-enable after fixing the initialization issue
-            // const savedState = getSavedColumnState()
-            // if (savedState && savedState.length > 0) {
-            //   p.api.applyColumnState({ state: savedState })
-            // }
+            // Simple column state persistence
+            try {
+              const saved = localStorage.getItem('coupon-grid-column-state')
+              if (saved) {
+                const state = JSON.parse(saved)
+                if (state && state.length > 0) {
+                  p.api.applyColumnState({ state: state })
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to load column state:', error)
+            }
+            
+            // Save column state when resized
+            p.api.addEventListener('columnResized', (event: any) => {
+              if (event.finished) {
+                try {
+                  const state = p.api.getColumnState()
+                  localStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
+                } catch (error) {
+                  console.warn('Failed to save column state:', error)
+                }
+              }
+            })
           }}
 
            rowSelection="multiple"
