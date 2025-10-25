@@ -8,19 +8,26 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  console.log('AuthGuard: Checking authentication', { isAuthenticated });
+  console.log('AuthGuard: Checking authentication', { isAuthenticated, isLoading });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Only redirect if we're not loading and not authenticated
+    if (!isLoading && !isAuthenticated) {
       console.log('AuthGuard: Not authenticated, redirecting to login');
       navigate('/login', { replace: true, state: { from: location } })
     }
-  }, [isAuthenticated, navigate, location])
+  }, [isAuthenticated, isLoading, navigate, location])
 
+  // Show nothing while loading
+  if (isLoading) {
+    return null
+  }
+
+  // Show nothing if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null
   }
