@@ -1581,23 +1581,32 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             // No automatic sorting - show natural order
             
             // Session-only column state persistence (not across reloads)
-            try {
-              const saved = sessionStorage.getItem('coupon-grid-column-state')
-              if (saved) {
-                const state = JSON.parse(saved)
-                if (state && state.length > 0) {
-                  p.api.applyColumnState({ state: state })
+            // Apply with delay to ensure grid is fully initialized
+            setTimeout(() => {
+              try {
+                const saved = sessionStorage.getItem('coupon-grid-column-state')
+                if (saved) {
+                  const state = JSON.parse(saved)
+                  if (state && state.length > 0) {
+                    console.log('Applying saved column state:', state)
+                    p.api.applyColumnState({ 
+                      state: state,
+                      applyOrder: true,
+                      defaultState: { sort: null }
+                    })
+                  }
                 }
+              } catch (error) {
+                console.warn('Failed to load column state:', error)
               }
-            } catch (error) {
-              console.warn('Failed to load column state:', error)
-            }
+            }, 100)
             
             // Save column state when resized (session only)
             p.api.addEventListener('columnResized', (event: any) => {
               if (event.finished) {
                 try {
                   const state = p.api.getColumnState()
+                  console.log('Saving column state on resize:', state)
                   sessionStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
                 } catch (error) {
                   console.warn('Failed to save column state:', error)
@@ -1610,10 +1619,22 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
               if (event.finished) {
                 try {
                   const state = p.api.getColumnState()
+                  console.log('Saving column state on move:', state)
                   sessionStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
                 } catch (error) {
                   console.warn('Failed to save column state:', error)
                 }
+              }
+            })
+            
+            // Save on any column state change
+            p.api.addEventListener('columnStateChanged', (event: any) => {
+              try {
+                const state = p.api.getColumnState()
+                console.log('Saving column state on change:', state)
+                sessionStorage.setItem('coupon-grid-column-state', JSON.stringify(state))
+              } catch (error) {
+                console.warn('Failed to save column state:', error)
               }
             })
           }}
@@ -1629,6 +1650,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            domLayout="normal"
            suppressHorizontalScroll={false}
            suppressColumnVirtualisation={true}
+           maintainColumnOrder={true}
+           suppressColumnMoveAnimation={true}
+           suppressColumnStateEvents={false}
            
            // Disable AG Grid's copy/paste functionality
             suppressCopyRowsToClipboard={true}
