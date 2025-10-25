@@ -320,12 +320,20 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         ...couponData 
       } = coupon
       
-      const newCoupon = await couponsAdapter.create({
+      console.log('Original coupon:', coupon);
+      console.log('Coupon data to duplicate:', couponData);
+      console.log('Merchant documentId:', merchant?.documentId);
+      
+      const duplicateData = {
         ...couponData,
         merchant: merchant?.documentId,
         coupon_title: `${coupon.coupon_title} (Copy)`,
         // Don't set priority - let CMS lifecycle handle it based on merchant
-      })
+      };
+      
+      console.log('Final duplicate data:', duplicateData);
+      
+      const newCoupon = await couponsAdapter.create(duplicateData)
       
       onCouponsChange()
       toast({
@@ -699,7 +707,17 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       editable: true,
       wrapText: true,
       autoHeight: true,
-      cellEditor: 'agTextAreaCellEditor'
+      cellEditor: 'agTextAreaCellEditor',
+      cellStyle: { 
+        lineHeight: '1.4',
+        display: 'flex',
+        alignItems: 'center',
+        height: '100%',
+        minHeight: '40px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'normal'
+      }
     },
     { 
       field: 'value', 
@@ -747,6 +765,16 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       cellEditor: RichTextCellEditor,
       cellEditorParams: {
         suppressKeyboardEvent: () => true // Prevent default keyboard handling
+      },
+      cellStyle: { 
+        lineHeight: '1.4',
+        display: 'flex',
+        alignItems: 'center',
+        height: '100%',
+        minHeight: '40px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'normal'
       }
     },
     { 
@@ -1563,12 +1591,15 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
                alignItems: 'center',
                height: '100%',
                minHeight: '40px',
-               whiteSpace: 'nowrap',
-               overflow: 'visible'
+               overflow: 'hidden',
+               textOverflow: 'ellipsis'
              }
            }}
            enterNavigatesVertically={true}
            enterNavigatesVerticallyAfterEdit={true}
+           suppressColumnVirtualisation={true}
+           maintainColumnOrder={true}
+           suppressColumnMoveAnimation={true}
          />
       </div>
 

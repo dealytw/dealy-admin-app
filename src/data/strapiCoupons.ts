@@ -65,10 +65,14 @@ class StrapiCouponsAdapter implements CouponsPort {
       coupon_status: 'active' as const,
     }
     
+    console.log('Creating coupon with data:', cleanInput);
+    
     const response = await sfetch('/api/coupons', {
       method: 'POST',
       body: JSON.stringify({ data: cleanInput }),
     })
+    
+    console.log('Create response:', response);
     return response.data
   }
 
