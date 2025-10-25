@@ -680,6 +680,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       width: 150,
       cellRenderer: MerchantCell,
       editable: false,
+      comparator: (valueA, valueB) => {
+        // Case-sensitive sorting: A comes before a
+        if (valueA < valueB) return -1;
+        if (valueA > valueB) return 1;
+        return 0;
+      },
       valueGetter: (params) => {
         const data = params.data
         // Handle Strapi relation structure
