@@ -320,22 +320,19 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         ...couponData 
       } = coupon
       
-      console.log('Original coupon:', coupon);
-      console.log('Coupon data to duplicate:', couponData);
-      console.log('Merchant documentId:', merchant?.documentId);
-      
       const duplicateData = {
         ...couponData,
         merchant: merchant?.documentId,
+        market: coupon.market?.documentId, // Include market relation
         coupon_title: `${coupon.coupon_title} (Copy)`,
         // Don't set priority - let CMS lifecycle handle it based on merchant
       };
       
-      console.log('Final duplicate data:', duplicateData);
-      
       const newCoupon = await couponsAdapter.create(duplicateData)
       
-      onCouponsChange()
+      // Add the new coupon to the existing data instead of reloading everything
+      setRowData(prevData => [...prevData, newCoupon])
+      
       toast({
         title: 'Coupon duplicated',
         description: 'New coupon created successfully',
@@ -984,8 +981,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           site: contextMenuRowData.site
         }
         
-        await couponsAdapter.create(couponData)
-        onCouponsChange()
+        const newCoupon = await couponsAdapter.create(couponData)
+        
+        // Add the new coupon to the existing data instead of reloading everything
+        setRowData(prevData => [...prevData, newCoupon])
+        
         toast({
           title: 'Coupon duplicated',
           description: 'New coupon created successfully',
@@ -1189,9 +1189,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
         return couponsAdapter.create(couponData)
       })
       
-      await Promise.all(createPromises)
+      const newCoupons = await Promise.all(createPromises)
+      
+      // Add the new coupons to the existing data instead of reloading everything
+      setRowData(prevData => [...prevData, ...newCoupons])
       setSelectedRows([])
-      onCouponsChange()
+      
       toast({
         title: 'Coupons duplicated',
         description: `${selectedRows.length} coupons have been duplicated`,
