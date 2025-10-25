@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password,
       };
       
-      const response = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/auth/local`, {
+      const response = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/auth/local?populate=role`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
