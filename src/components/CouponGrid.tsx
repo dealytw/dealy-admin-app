@@ -1588,7 +1588,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            }}
           onGridReady={(p) => { 
             (window as any).gridApi = p.api;
-            // No automatic sorting - show natural order
+            // Set default sort to Merchant ascending (A-Z)
+            p.api.applyColumnState({
+              state: [{ colId: 'merchant', sort: 'asc' }],
+              defaultState: { sort: null }
+            });
             
             // Session-only column state persistence (not across reloads)
             // Apply with delay to ensure grid is fully initialized
