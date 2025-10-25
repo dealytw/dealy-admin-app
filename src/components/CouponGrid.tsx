@@ -658,7 +658,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       width: 120,
       rowDrag: true,
       editable: true,
-      sortable: true
+      sortable: true,
+      cellStyle: { 
+        paddingLeft: '8px',
+        paddingRight: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start'
+      }
     },
     { 
       field: 'coupon_uid', 
@@ -1526,12 +1533,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             display: none !important;
           }
           .ag-theme-quartz .ag-cell[col-id="priority"] {
-            text-align: center !important;
             padding: 8px 4px !important;
             font-weight: bold !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
           }
           .ag-theme-quartz .ag-cell[col-id="priority"] .ag-row-drag {
-            justify-content: center !important;
+            margin-right: 8px !important;
           }
           .ag-theme-quartz .ag-context-menu {
             z-index: 1000 !important;
