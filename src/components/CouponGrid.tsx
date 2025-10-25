@@ -681,9 +681,11 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       cellRenderer: MerchantCell,
       editable: false,
       comparator: (valueA, valueB) => {
-        // Case-sensitive sorting: A comes before a
-        if (valueA < valueB) return -1;
-        if (valueA > valueB) return 1;
+        // Case-insensitive alphabetical sorting: A/a together, B/b together
+        const a = (valueA || '').toLowerCase();
+        const b = (valueB || '').toLowerCase();
+        if (a < b) return -1;
+        if (a > b) return 1;
         return 0;
       },
       valueGetter: (params) => {
