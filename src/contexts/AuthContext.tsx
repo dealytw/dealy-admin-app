@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.jwt && data.user) {
         // Check if user has admin role (Strapi v5 structure)
         const userRole = data.user.role?.type || data.user.role?.name;
-        if (userRole !== 'Super Admin' && userRole !== 'Super Editor' && userRole !== 'Editor') {
+        if (userRole !== 'Super Admin' && userRole !== 'Super Editor' && userRole !== 'Editor' && userRole !== 'Authenticated') {
           console.log('AuthContext: User role not authorized', { role: userRole });
           return false;
         }
