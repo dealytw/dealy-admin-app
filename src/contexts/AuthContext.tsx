@@ -71,14 +71,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const data = await response.json();
       
-      console.log('AuthContext: Full response data', data);
-      console.log('AuthContext: User object', data.user);
-      console.log('AuthContext: User role', data.user?.role);
-      
       if (data.jwt && data.user) {
-        // Check if user has admin role (Strapi v5 structure)
-        const userRole = data.user.role?.type || data.user.role?.name;
-        if (userRole !== 'Super Admin' && userRole !== 'Super Editor' && userRole !== 'Editor' && userRole !== 'Authenticated' && userRole !== 'EditorApp') {
+        // Fetch user's role with a second API call (Strapi v5 doesn't include role in login response)
+        const meResponse = await fetch(`${import.meta.env.VITE_STRAPI_URL}/api/users/me?populate=role`, {
+          headers: { 
+            'Authorization': `Bearer ${data.jwt}`,
+            'Content-Type': 'application/json'
+          },
+        });
+        
+        if (!meResponse.ok) {
+          console.log('AuthContext: Failed to fetch user role');
+          return false;
+        }
+        
+        const meData = await meResponse.json();
+        const userRole = meData?.role?.name || meData?.role?.type;
+        
+        console.log('AuthContext: User role from /users/me', { role: userRole });
+        
+        // Check if user has admin role
+        const ALLOWED_ROLES = ['Super Admin', 'Super Editor', 'Editor', 'Authenticated', 'EditorApp'];
+        if (!ALLOWED_ROLES.includes(userRole)) {
           console.log('AuthContext: User role not authorized', { role: userRole });
           return false;
         }
@@ -88,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
-          role: data.user.role?.type || 'User',
+          role: userRole,
         });
 
         // Store in session storage
@@ -97,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
-          role: data.user.role?.type || 'User',
+          role: userRole,
         }));
 
         console.log('AuthContext: Login successful', { 
