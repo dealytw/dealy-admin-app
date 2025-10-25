@@ -657,14 +657,13 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       headerName: 'Priority',
       width: 120,
       rowDrag: true,
-      editable: true,
+      editable: false,
       sortable: true,
       cellStyle: { 
         paddingLeft: '8px',
         paddingRight: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start'
+        cursor: 'grab',
+        userSelect: 'none'
       }
     },
     { 
@@ -1535,12 +1534,14 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           .ag-theme-quartz .ag-cell[col-id="priority"] {
             padding: 8px 4px !important;
             font-weight: bold !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
+            cursor: grab !important;
+            user-select: none !important;
           }
           .ag-theme-quartz .ag-cell[col-id="priority"] .ag-row-drag {
-            margin-right: 8px !important;
+            display: none !important;
+          }
+          .ag-theme-quartz .ag-cell[col-id="priority"]:active {
+            cursor: grabbing !important;
           }
           .ag-theme-quartz .ag-context-menu {
             z-index: 1000 !important;
