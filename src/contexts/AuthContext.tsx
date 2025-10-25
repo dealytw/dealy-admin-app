@@ -71,6 +71,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const data = await response.json();
       
+      console.log('AuthContext: Full response data', data);
+      console.log('AuthContext: User object', data.user);
+      console.log('AuthContext: User role', data.user?.role);
+      
       if (data.jwt && data.user) {
         // Check if user has admin role (Strapi v5 structure)
         const userRole = data.user.role?.type || data.user.role?.name;
