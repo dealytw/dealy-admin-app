@@ -662,6 +662,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       cellStyle: { 
         paddingLeft: '8px',
         paddingRight: '8px',
+        textAlign: 'center',
         cursor: 'grab',
         userSelect: 'none'
       }
@@ -1534,11 +1535,18 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
           .ag-theme-quartz .ag-cell[col-id="priority"] {
             padding: 8px 4px !important;
             font-weight: bold !important;
+            text-align: center !important;
             cursor: grab !important;
             user-select: none !important;
           }
           .ag-theme-quartz .ag-cell[col-id="priority"] .ag-row-drag {
-            display: none !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            width: 100% !important;
+            height: 100% !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1 !important;
           }
           .ag-theme-quartz .ag-cell[col-id="priority"]:active {
             cursor: grabbing !important;
