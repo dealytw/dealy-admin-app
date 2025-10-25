@@ -658,13 +658,7 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
       width: 120,
       rowDrag: true,
       editable: true,
-      sortable: true,
-      type: 'numericColumn',
-      cellStyle: { 
-        textAlign: 'center',
-        fontWeight: 'bold',
-        padding: '8px 4px'
-      }
+      sortable: true
     },
     { 
       field: 'coupon_uid', 
