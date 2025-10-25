@@ -942,6 +942,19 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
     return null
   }, [])
 
+  // Load column state directly from localStorage (no dependencies)
+  const getSavedColumnState = () => {
+    try {
+      const saved = localStorage.getItem('coupon-grid-column-state')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (error) {
+      console.warn('Failed to load column state:', error)
+    }
+    return null
+  }
+
   const onColumnResized = useCallback((event: any) => {
     if (event.finished && gridRef.current?.api) {
       saveColumnState(gridRef.current.api)
@@ -1599,8 +1612,9 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
            onCellValueChanged={onCellValueChanged}
            onRowDragEnd={onRowDragEnd}
            onSelectionChanged={onSelectionChanged}
-           onColumnResized={onColumnResized}
-           onColumnMoved={onColumnMoved}
+           // Temporarily disable column handlers to fix white screen
+           // onColumnResized={onColumnResized}
+           // onColumnMoved={onColumnMoved}
            suppressContextMenu={true}
            onCellContextMenu={(event) => {
              console.log('AG Grid onCellContextMenu triggered:', event)
@@ -1621,11 +1635,12 @@ export function CouponGrid({ coupons, onCouponsChange, filters, onFiltersChange 
             (window as any).gridApi = p.api;
             // No automatic sorting - show natural order
             
-            // Apply saved column state
-            const savedState = loadColumnState()
-            if (savedState && savedState.length > 0) {
-              p.api.applyColumnState({ state: savedState })
-            }
+            // Temporarily disable column state loading to fix white screen
+            // TODO: Re-enable after fixing the initialization issue
+            // const savedState = getSavedColumnState()
+            // if (savedState && savedState.length > 0) {
+            //   p.api.applyColumnState({ state: savedState })
+            // }
           }}
 
            rowSelection="multiple"
